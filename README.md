@@ -16,9 +16,7 @@ Battery                 | Non-removable 5000 mAh
 Display                 | 1080 x 2460 pixels, 6.8 inches, 120hz
 Camera                  | 50 MP AI Rear Camera + 2MP Macro lens; 24 MP (front)
 
-## Device picture
 
-![ INOI A75 ](https://inoi.com/wp-content/uploads/2025/02/inoi-purple-power-smartphone-A75-elegance-france.webp "INOI A75")
 
 ## Features
 
@@ -35,17 +33,4 @@ Works:
 - [X] Vibrator
 - [ ] DT2W
 
-## Building
-### TWRP, PBRP
-_Lunch_ command :
 
-```
-lunch twrp_INOI_A75-eng && mka vendorbootimage
-```
-
-### SHRP, OrangeFox
-_Lunch_ command :
-
-```
-lunch twrp_INOI_A75-eng && mka adbd vendorbootimage
-```
