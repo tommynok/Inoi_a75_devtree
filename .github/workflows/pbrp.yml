@@ -28,11 +28,11 @@ on:
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
-        default: 'https://github.com/tommynok/recovery-device_inoi_INOI_A75'
+        default: 'https://github.com/tommynok/Inoi_a75_devtree'
       DEVICE_TREE_BRANCH:
         description: 'DEVICE_TREE_BRANCH'
         required: true
-        default: 'twrp-12.1'
+        default: 'main'
       DEVICE_PATH:
         description: 'DEVICE_PATH'
         required: true
@@ -41,6 +41,18 @@ on:
         description: 'DEVICE_NAME'
         required: true
         default: 'INOI_A75'
+      COMMON_TREE_URL:
+        description: 'COMMON_TREE_URL'
+        required: true
+        default: 'https://github.com/tommynok/recovery_mt6789-common'
+      COMMON_TREE_BRANCH:
+        description: 'COMMON_TREE_BRANCH'
+        required: true
+        default: 'main'
+      COMMON_PATH:
+        description: 'COMMON_PATH'
+        required: true
+        default: 'device/alldocube/mt6789-common'
       MAKEFILE_NAME:
         description: 'MAKEFILE_NAME'
         required: true
@@ -79,6 +91,9 @@ jobs:
         echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
         echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
         echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
+        echo "Common Tree URL: ${{ github.event.inputs.COMMON_TREE_URL }}"
+        echo "Common Tree Branch: ${{ github.event.inputs.COMMON_TREE_BRANCH }}"
+        echo "Common Path: ${{ github.event.inputs.COMMON_PATH }}"
         echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
         echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
         echo "::endgroup::"
@@ -131,6 +146,11 @@ jobs:
     - name: Clone device tree
       run: |
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Clone common tree
+      run: |
+        git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.COMMON_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Set Swap Space

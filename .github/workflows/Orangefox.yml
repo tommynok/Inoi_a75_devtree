@@ -27,11 +27,11 @@ on:
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
-        default: 'https://github.com/tommynok/recovery-device_inoi_INOI_A75'
+        default: 'https://github.com/tommynok/Inoi_a75_devtree'
       DEVICE_TREE_BRANCH:
         description: 'DEVICE_TREE_BRANCH'
         required: true
-        default: 'twrp-12.1'
+        default: 'main'
       DEVICE_PATH:
         description: 'DEVICE_PATH'
         required: true
@@ -40,6 +40,18 @@ on:
         description: 'DEVICE_NAME'
         required: true
         default: 'INOI_A75'
+      COMMON_TREE_URL:
+        description: 'COMMON_TREE_URL'
+        required: true
+        default: 'https://github.com/tommynok/recovery_mt6789-common'
+      COMMON_TREE_BRANCH:
+        description: 'COMMON_TREE_BRANCH'
+        required: true
+        default: 'main'
+      COMMON_PATH:
+        description: 'COMMON_PATH'
+        required: true
+        default: 'device/alldocube/mt6789-common'
       MAKEFILE_NAME:
         description: 'MAKEFILE_NAME'
         required: true
@@ -105,6 +117,12 @@ jobs:
       run: |
         cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Clone common tree
+      run: |
+        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.COMMON_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Set Swap Space
