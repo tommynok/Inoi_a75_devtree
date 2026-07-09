@@ -153,11 +153,7 @@ jobs:
       run: |
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.COMMON_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-
-    - name: Fix recovery binaries permissions
-      run: |
-        chmod -R 755 ./${{ github.event.inputs.COMMON_PATH }}/recovery/root/sbin/
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
