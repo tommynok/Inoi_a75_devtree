@@ -25,6 +25,10 @@ override TARGET_SCREEN_WIDTH := 1080
 override TARGET_SCREEN_HEIGHT := 2460
 override OF_SCREEN_H := 2460
 
+# Language test
+override TW_DEFAULT_LANGUAGE := ru
+# override TW_DEFAULT_LANGUAGE := en   # fallback, если ru не найдётся при сборке
+
 # Statusbar
 override TW_STATUS_ICONS_ALIGN := center
 override TW_CUSTOM_CPU_POS := "300"
