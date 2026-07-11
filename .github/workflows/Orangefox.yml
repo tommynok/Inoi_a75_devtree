@@ -8,10 +8,10 @@ on:
         required: true
         default: 'UNOFFICIAL'
         type: choice
-        options: 
-        - 'BETA'
-        - 'UNOFFICIAL'
-        - 'OFFICIAL'
+        options:
+          - 'BETA'
+          - 'UNOFFICIAL'
+          - 'OFFICIAL'
       SYNC_URL:
         description: 'SYNC_URL'
         required: true
@@ -22,8 +22,8 @@ on:
         default: '12.1'
         type: choice
         options:
-        - '12.1'
-        - '14.1'
+          - '12.1'
+          - '14.1'
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
@@ -62,17 +62,17 @@ on:
         default: 'vendor_boot'
         type: choice
         options:
-        - 'boot'
-        - 'recovery'
-        - 'vendor_boot'
+          - 'boot'
+          - 'recovery'
+          - 'vendor_boot'
       APPLY_PATCH:
         description: 'Apply diff.patch'
         required: true
         default: 'false'
         type: choice
         options:
-        - 'true'
-        - 'false'
+          - 'true'
+          - 'false'
 
 jobs:
   build:
@@ -81,90 +81,100 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check Out
+        uses: actions/checkout@v3
 
-    - name: Check Out
-      uses: actions/checkout@v3
+      - name: Cleanup
+        uses: rokibhasansagar/slimhub_actions@main
 
-    - name: Cleanup
-      uses: rokibhasansagar/slimhub_actions@main
+      - name: Initialize workspace
+        run: |
+          mkdir workspace
+          cd workspace
+          echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
+        id: pwd
 
-    - name: Initialize workspace
-      run: |
-        mkdir workspace
-        cd workspace
-        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
-      id: pwd
+      - name: Prepare the build environment
+        run: |
+          sudo apt install git aria2 ccache -y
+          git clone https://gitlab.com/OrangeFox/misc/scripts
+          cd scripts
+          sudo bash setup/android_build_env.sh
+          sed -i 's/cd -/cd ../g' setup/install_android_sdk.sh
+          sudo bash setup/install_android_sdk.sh
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
+          echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
+          ccache -M 5G
+        working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Prepare the build environment
-      run: |
-        sudo apt install git aria2 -y
-        git clone https://gitlab.com/OrangeFox/misc/scripts
-        cd scripts
-        sudo bash setup/android_build_env.sh
-        sed -i 's/cd -/cd ../g' setup/install_android_sdk.sh
-        sudo bash setup/install_android_sdk.sh
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.MANIFEST_BRANCH }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.MANIFEST_BRANCH }}-
 
-    - name: Sync OrangeFox sources and minimal manifest
-      run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}
-        git clone ${{ github.event.inputs.SYNC_URL }}
-        cd sync
-        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      - name: Sync OrangeFox sources and minimal manifest
+        run: |
+          cd ${{ steps.pwd.outputs.workspace-folder }}
+          git clone ${{ github.event.inputs.SYNC_URL }}
+          cd sync
+          ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Clone device tree
-      run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      - name: Clone device tree
+        run: |
+          cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+          git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+        working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Clone common tree
-      run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.COMMON_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      - name: Clone common tree
+        run: |
+          cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+          git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.COMMON_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
+        working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Set Swap Space
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 12
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
 
-    - name: Apply custom diff.patch
-      if: github.event.inputs.APPLY_PATCH == 'true'
-      run: |
-        bash ${GITHUB_WORKSPACE}/workspace/${{ github.event.inputs.DEVICE_PATH }}/patches/apply-patches.sh
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-      continue-on-error: true
+      - name: Apply custom diff.patch
+        if: github.event.inputs.APPLY_PATCH == 'true'
+        run: |
+          bash ${GITHUB_WORKSPACE}/workspace/${{ github.event.inputs.DEVICE_PATH }}/patches/apply-patches.sh
+        working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        continue-on-error: true
 
-    - name: Building recovery
-      run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        set +e
-        source build/envsetup.sh
-        export ALLOW_MISSING_DEPENDENCIES=true
-        set -e
-        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && mka adbd vendorbootimage
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      - name: Building recovery
+        run: |
+          cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+          set +e
+          source build/envsetup.sh
+          export ALLOW_MISSING_DEPENDENCIES=true
+          set -e
+          lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && mka adbd vendorbootimage
+        working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Check the output directory before uploading
-      run: |
-        ls -al ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/
-        echo
-        ls -al ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/
+      - name: Check the output directory before uploading
+        run: |
+          ls -al ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/
+          echo
+          ls -al ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/
 
-    - name: Upload to Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.img
-          ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
-        name: OrangeFox-OFRP-${{ github.event.inputs.DEPLOY_TYPE }}-${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
-        tag_name: ${{ github.run_id }}
-        body: |
-          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          Device: ${{ github.event.inputs.DEVICE_NAME }}
-          Deploy Type: ${{ github.event.inputs.DEPLOY_TYPE }}
-          Target: ${{ github.event.inputs.BUILD_TARGET }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.img
+            ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
+          name: OrangeFox-OFRP-${{ github.event.inputs.DEPLOY_TYPE }}-${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
+          tag_name: ${{ github.run_id }}
+          body: |
+            Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
+            Device: ${{ github.event.inputs.DEVICE_NAME }}
+            Deploy Type: ${{ github.event.inputs.DEPLOY_TYPE }}
+            Target: ${{ github.event.inputs.BUILD_TARGET }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
