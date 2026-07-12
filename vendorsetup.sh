@@ -53,7 +53,7 @@ fi
 
 # OrangeFox build vars
 # official zstd binary at /sbin/zstd (replaces the manually shipped one)
-export FOX_USE_ZSTD_BINARY=1
+#export FOX_USE_ZSTD_BINARY=1
 # skip adopted-storage decryption on A12+ (removes the harmless ABX
 # "E:Error parsing XML file" from /data/system/storage.xml at startup)
 export OF_SKIP_DECRYPTED_ADOPTED_STORAGE=1
