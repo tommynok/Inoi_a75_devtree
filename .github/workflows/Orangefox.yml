@@ -140,12 +140,11 @@ jobs:
         with:
           swap-size-gb: 12
 
-      - name: Apply custom diff.patch
+      - name: Slim theme (fonts + languages)
         if: github.event.inputs.APPLY_PATCH == 'true'
         run: |
-          bash ${GITHUB_WORKSPACE}/workspace/${{ github.event.inputs.DEVICE_PATH }}/patches/apply-patches.sh
+          bash ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/${{ github.event.inputs.DEVICE_PATH }}/patches/apply-patches.sh ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-        continue-on-error: true
 
       - name: Building recovery
         run: |
