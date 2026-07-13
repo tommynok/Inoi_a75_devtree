@@ -62,3 +62,14 @@ export OF_SKIP_DECRYPTED_ADOPTED_STORAGE=1
 export FOX_ENABLE_KERNELSU_SUPPORT=1
 export FOX_ENABLE_KERNELSU_NEXT_SUPPORT=1
 export FOX_ENABLE_SUKISU_SUPPORT=1
+
+# FRP removal addon - EXPERIMENTAL. No-op unless device has a dedicated frp
+# partition. INOI A75 partition table needs to be checked before relying on this.
+export OF_ENABLE_FRP_ADDON=1
+
+# UPX-compress executables >128kb in /sbin and /system/bin - EXPERIMENTAL.
+# Risk: binaries invoked directly via GUI "cmd" actions (maintainer.xml) need
+# instant exec; UPX adds a self-decompress step on every launch. Test each
+# affected binary (zstd, par2turbo, ksud, busybox) individually before enabling
+# broadly. maintainer.xml itself is not an executable and is unaffected.
+export FOX_COMPRESS_EXECUTABLES=0
