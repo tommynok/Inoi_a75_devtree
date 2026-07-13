@@ -52,8 +52,15 @@ if [ ! -d ${CCACHE_DIR} ]; then
 fi
 
 # OrangeFox build vars
-# official zstd binary at /sbin/zstd (replaces the manually shipped one)
-#export FOX_USE_ZSTD_BINARY=1
-# skip adopted-storage decryption on A12+ (removes the harmless ABX
-# "E:Error parsing XML file" from /data/system/storage.xml at startup)
+# official prebuilt zstd is v1.4.7 (2020): +20% backup time, worse ratio
+# vs the manually shipped 1.5.x binary in the tree - keep disabled
+# export FOX_USE_ZSTD_BINARY=1
+# skip adopted-storage decryption on A12+; NOTE: only kicks in when the
+# recovery can read the installed ROM version, which currently fails
+# ("No ROM" / system_root mount errors), so the ABX parse error remains
 export OF_SKIP_DECRYPTED_ADOPTED_STORAGE=1
+# KernelSU install support in Fox Addons (device eligible: VirtualAB + GKI 5.10)
+# ksud (~2.3mb) is shared; all three together cost ~3mb of ramdisk
+export FOX_ENABLE_KERNELSU_SUPPORT=1
+export FOX_ENABLE_KERNELSU_NEXT_SUPPORT=1
+export FOX_ENABLE_SUKISU_SUPPORT=1
