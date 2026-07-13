@@ -4,13 +4,29 @@
 # Runs after source sync, before build. Deletes files only - never touches
 # ui.xml or theme structure (theme version mismatch => GUI bootloop).
 set -e
-
 FOX="$1"
 if [ -z "$FOX" ] || [ ! -d "$FOX/bootable/recovery/gui" ]; then
     echo "ERROR: pass fox source root as arg1 (got: '$FOX')"
     exit 1
 fi
 GUI="$FOX/bootable/recovery/gui"
+PATCH_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# --- 0. Fix DT2W wake-from-blanked-screen bug in gui.cpp ---
+# Upstream InputHandler::processInput() only calls resetTimerAndUnblank()
+# while the screen is NOT already off, so a KEY_WAKEUP event from a
+# double-tap-to-wake gesture driver can never turn the screen back on.
+# This patch adds an explicit exception for KEY_WAKEUP while blanked.
+GUI_WAKE_PATCH="$PATCH_DIR/patch-gui-keywakeup-fox_12.1.diff"
+echo "=== Applying KEY_WAKEUP unblank fix ==="
+if [ ! -f "$GUI_WAKE_PATCH" ]; then
+    echo "WARNING: $GUI_WAKE_PATCH not found, skipping KEY_WAKEUP fix"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$GUI_WAKE_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$GUI_WAKE_PATCH"
+    echo "KEY_WAKEUP patch applied successfully"
+else
+    echo "WARNING: KEY_WAKEUP patch failed dry-run (gui.cpp upstream context may have changed) - skipping, build continues"
+fi
 
 echo "=== Theme slimming: start ==="
 echo "GUI dir size before:"
