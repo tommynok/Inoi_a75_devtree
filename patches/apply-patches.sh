@@ -18,7 +18,10 @@ du -sh "$GUI"
 
 # --- 1. Fonts: delete-list (verified unused, 0 references in theme XML) ---
 # Roboto* and GoogleSans* are BOTH required (different UI layers) - never touch.
-DEAD_FONTS="DroidSansFallback.ttf NotoSansCJKjp-Regular.ttf Chococooky.ttf ae_Cortoba.ttf Roboto-Spanish.ttf FiraCode-Medium.ttf"
+# NOTE: FiraCode-Medium is NOT dead despite 0 static refs in theme XML:
+# the font picker writes /sdcard/Fox/.theme/font.xml referencing <Name>-Medium.ttf
+# dynamically; deleting it bootloops the GUI if the user ever picks FiraCode.
+DEAD_FONTS="DroidSansFallback.ttf NotoSansCJKjp-Regular.ttf Chococooky.ttf ae_Cortoba.ttf Roboto-Spanish.ttf"
 for f in $DEAD_FONTS; do
     found=$(find "$GUI" -type f -name "$f")
     if [ -n "$found" ]; then
@@ -30,25 +33,6 @@ for f in $DEAD_FONTS; do
         echo "skip (not found): $f"
     fi
 done
-
-# --- 1b. Clone light fonts over heavy picker fonts (same filenames) ---
-# Theme references filenames only; GoogleSans is a core UI font (Cyrillic guaranteed).
-# Regular replaces Regular, Medium replaces Medium. Fully skipped if donor absent.
-# To undo this trick: delete/comment this whole block (nothing else refers to it).
-FDIR="$(dirname "$(find "$GUI" -name 'GoogleSans-Regular.ttf' | head -n1)")"
-if [ -n "$FDIR" ] && [ -f "$FDIR/GoogleSans-Regular.ttf" ] && [ -f "$FDIR/GoogleSans-Medium.ttf" ]; then
-    if [ -f "$FDIR/InterDisplay-Regular.ttf" ] && [ -f "$FDIR/InterDisplay-Medium.ttf" ]; then
-        echo "SWAP: InterDisplay pair -> GoogleSans clones ($(stat -c%s "$FDIR/InterDisplay-Regular.ttf") + $(stat -c%s "$FDIR/InterDisplay-Medium.ttf") bytes freed)"
-        cp -f "$FDIR/GoogleSans-Regular.ttf" "$FDIR/InterDisplay-Regular.ttf"
-        cp -f "$FDIR/GoogleSans-Medium.ttf"  "$FDIR/InterDisplay-Medium.ttf"
-    fi
-    if [ -f "$FDIR/RobotoSlab.ttf" ]; then
-        echo "SWAP: RobotoSlab -> GoogleSans clone ($(stat -c%s "$FDIR/RobotoSlab.ttf") bytes freed)"
-        cp -f "$FDIR/GoogleSans-Regular.ttf" "$FDIR/RobotoSlab.ttf"
-    fi
-else
-    echo "skip font swap: GoogleSans donor pair not found"
-fi
 
 # --- 2. Languages: keep-list (en + ru), delete the rest ---
 KEEP="en.xml ru.xml"
