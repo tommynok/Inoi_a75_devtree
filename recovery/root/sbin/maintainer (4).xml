@@ -1,0 +1,387 @@
+<?xml version="1.0"?>
+<recovery>
+	<pages>
+
+		<!-- Главное меню кастомных инструментов -->
+		<page name="maintainer">
+			<listbox style="group_list">
+				<placement x="0" y="%ab_h%" w="%screen_w%" h="%bl_fullscreen_h%"/>
+				<icon selected="build" unselected="build" />
+
+				<listitem name="Backup super — zstd">
+					<action function="set">mnt_backup_method=zstd</action>
+					<action function="set">of_show_storage_selection=0</action>
+					<action function="page">maintainer_backup_prep</action>
+				</listitem>
+
+				<listitem name="Backup super — zstd+par2">
+					<action function="set">mnt_backup_method=zstdpar2</action>
+					<action function="set">of_show_storage_selection=0</action>
+					<action function="page">maintainer_backup_prep</action>
+				</listitem>
+
+				<listitem name="Restore super (choose file)">
+					<action function="page">maintainer_restore_pick</action>
+				</listitem>
+			</listbox>
+
+			<template name="base"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>Custom tools</text>
+			</text>
+
+			<template name="gestures"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">advanced</action>
+			</action>
+		</page>
+
+		<!-- Подготовка бекапа: метод уже выбран, тут storage-выбор + confirm -->
+		<page name="maintainer_backup_prep">
+			<template name="base"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>Backup super</text>
+			</text>
+
+			<text style="text_body1">
+				<condition var1="mnt_backup_method" var2="zstd"/>
+				<placement x="%gl_text_x%" y="%row1_1_y%"/>
+				<text>Method: zstd</text>
+			</text>
+
+			<text style="text_body1">
+				<condition var1="mnt_backup_method" var2="zstdpar2"/>
+				<placement x="%gl_text_x%" y="%row1_1_y%"/>
+				<text>Method: zstd + par2</text>
+			</text>
+
+			<text style="text_body1">
+				<placement x="%gl_text_x%" y="%row2_1_y%"/>
+				<text>%tw_storage_display_name%</text>
+			</text>
+
+			<text style="text_body2_hl">
+				<placement x="%gl_text_x%" y="%row2_2_y%"/>
+				<text>{@part_free}: %tw_storage_free_size%{@mbyte}</text>
+			</text>
+
+			<text style="text_body1">
+				<placement x="%gl_text_x%" y="%row3_1_y%"/>
+				<text>Backup size: ~3 GB (zstd). Check free space above</text>
+			</text>
+
+			<button style="actionbar">
+				<condition var1="of_show_storage_selection" var2="1"/>
+				<placement x="%ab_btn2_x%" y="%ab_y%" placement="4"/>
+				<action function="set">of_show_storage_selection=0</action>
+			</button>
+
+			<button style="actionbar">
+				<condition var1="of_show_storage_selection" op="!=" var2="1"/>
+				<placement x="%ab_btn2_x%" y="%ab_y%" placement="4"/>
+				<action function="set">of_show_storage_selection=1</action>
+			</button>
+
+			<image>
+				<placement x="%ab_btn2_x%" y="%ab_y%" placement="4"/>
+				<image resource="actionbar_storage"/>
+			</image>
+
+			<text style="caption">
+				<placement x="%center_x%" y="%slider_text_y%" placement="5"/>
+				<text>{@swipe_backup}</text>
+			</text>
+
+			<slider style="slider_action">
+				<placement x="%center_x%" y="%slider_y%" placement="5"/>
+				<action function="page">maintainer_backup_run</action>
+			</slider>
+
+			<button>
+				<condition var1="of_show_storage_selection" var2="1"/>
+				<fill color="%darktransparent%"/>
+				<placement x="0" y="%ab_h%" w="%screen_w%" h="%screen_h%"/>
+				<action function="set">of_show_storage_selection=0</action>
+			</button>
+
+			<template name="storage_dialog"/>
+
+			<template name="gestures"/>
+
+			<action>
+				<condition var1="tw_storage_path" op="modified"/>
+				<action function="set">of_show_storage_selection=0</action>
+				<action function="page">maintainer_backup_prep</action>
+			</action>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">maintainer</action>
+			</action>
+		</page>
+
+		<!-- Busy-страница: реальный backup -->
+		<page name="maintainer_backup_run">
+			<template name="base_console"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>Backing up super...</text>
+			</text>
+
+			<action>
+				<action function="set">mnt_report=</action>
+				<action function="mount">/data</action>
+				<action function="terminalcommand">
+BASE="%tw_storage_path%/Partitions_backup";
+D="$(date +%%Y-%%m-%%d_%%H-%%M-%%S)";
+DAY="$(date +%%Y-%%m-%%d)";
+O="$BASE/$DAY";
+mkdir -p "$O" || exit 1;
+
+PART_BLOCKS="$(blockdev --getsize /dev/block/bootdevice/by-name/super)";
+PART_MB=$(( PART_BLOCKS / 2048 ));
+
+START="$(date +%%s)";
+F="$O/super_$D.img.zst";
+echo "Backing up Super to %tw_storage_display_name%/Partitions_backup";
+dd if=/dev/block/bootdevice/by-name/super bs=1M | zstd -12 -T8 -c > "$F" || exit 1;
+echo "Verifying archive...";
+zstd -t "$F" >/dev/null 2>&amp;1 || exit 1;
+echo "Archive OK";
+if [ "%mnt_backup_method%" = "zstdpar2" ]; then
+echo "Creating par2 recovery data...";
+par2turbo c -q -r10 -n3 "$F.par2" "$F" || exit 1;
+fi
+END="$(date +%%s)";
+ELAPSED=$(( END - START ));
+if [ "$ELAPSED" -lt 1 ]; then ELAPSED=1; fi;
+MIN=$(( ELAPSED / 60 ));
+SEC=$(( ELAPSED %% 60 ));
+set -- $(du -m "$F");
+SIZE_MB="$1";
+READ_SPD=$(( PART_MB / ELAPSED ));
+WRITE_SPD=$(( SIZE_MB / ELAPSED ));
+echo "Done: size $SIZE_MB MB";
+echo "Time: $MIN min $SEC sec, read $READ_SPD MB/s, write $WRITE_SPD MB/s";
+echo "File: super_$D.img.zst";
+				</action>
+			</action>
+
+			<action>
+				<condition var1="tw_operation_state" var2="1"/>
+				<condition var1="tw_operation_status" var2="0"/>
+				<action function="set">tw_text1=Backup complete</action>
+				<action function="page">maintainer_result</action>
+			</action>
+
+			<action>
+				<condition var1="tw_operation_state" var2="1"/>
+				<condition var1="tw_operation_status" op="!=" var2="0"/>
+				<action function="set">tw_text1=Backup FAILED - see output below</action>
+				<action function="page">maintainer_result</action>
+			</action>
+		</page>
+
+		<!-- Визуальный выбор файла для restore, фильтр только .zst -->
+		<page name="maintainer_restore_pick">
+			<fileselector style="fileselector_b">
+				<condition var1="list_font" var2="1"/>
+				<placement x="0" y="%row_ab_ex_y%" w="%fileselector_width%" h="%fileselector_terminal_height%"/>
+				<sort name="tw_gui_sort_order"/>
+				<icon folder="folder_icon" file="file_icon" />
+				<filter extn=".zst" folders="1" files="1"/>
+				<path name="restore_zst_path" default="/sdcard/Partitions_backup"/>
+				<data name="restore_zst_filename"/>
+				<selection name="restore_zst_file"/>
+			</fileselector>
+
+			<fileselector style="fileselector_s">
+				<condition var1="list_font" op="!=" var2="1"/>
+				<placement x="0" y="%row_ab_ex_y%" w="%fileselector_width%" h="%fileselector_terminal_height%"/>
+				<sort name="tw_gui_sort_order"/>
+				<icon folder="folder_icon_small" file="file_icon_small" />
+				<filter extn=".zst" folders="1" files="1"/>
+				<path name="restore_zst_path" default="/sdcard/Partitions_backup"/>
+				<data name="restore_zst_filename"/>
+				<selection name="restore_zst_file"/>
+			</fileselector>
+
+			<template name="base_ex"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>Select backup file</text>
+			</text>
+
+			<action>
+				<condition var1="restore_zst_filename" op="modified"/>
+				<action function="page">maintainer_restore_confirm</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">maintainer</action>
+			</action>
+		</page>
+
+		<!-- Подтверждение перед перезаписью раздела -->
+		<page name="maintainer_restore_confirm">
+			<template name="base"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>Confirm restore</text>
+			</text>
+
+			<text style="text_body1">
+				<placement x="%gl_text_x%" y="%row1_1_y%"/>
+				<text>File: %restore_zst_file%</text>
+			</text>
+
+			<text style="text_body2_hl">
+				<placement x="%gl_text_x%" y="%row2_1_y%"/>
+				<text>This will OVERWRITE the super partition</text>
+			</text>
+
+			<text style="text_body2_hl">
+				<placement x="%gl_text_x%" y="%row2_2_y%"/>
+				<text>This cannot be undone.</text>
+			</text>
+
+			<text style="caption">
+				<placement x="%center_x%" y="%slider_text_y%" placement="5"/>
+				<text>{@swipe_to_confirm}</text>
+			</text>
+
+			<slider style="slider_action">
+				<placement x="%center_x%" y="%slider_y%" placement="5"/>
+				<action function="page">maintainer_restore_run</action>
+			</slider>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">maintainer_restore_pick</action>
+			</action>
+		</page>
+
+		<!-- Busy-страница: валидация имени + check_and_repair + реальный restore -->
+		<page name="maintainer_restore_run">
+			<template name="base_console"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>Restoring super...</text>
+			</text>
+
+			<action>
+				<action function="set">mnt_report=</action>
+				<action function="mount">/data</action>
+				<action function="terminalcommand">
+F="%restore_zst_filename%";
+BN="$(basename "$F")";
+
+case "$BN" in
+  super_*) : ;;
+  *) echo "ERROR: selected file is not a super_ backup, aborting"; exit 1 ;;
+esac;
+
+set -- $(du -m "$F");
+FILE_MB="$1";
+if [ "$FILE_MB" -lt 1000 ]; then
+echo "ERROR: file is only $FILE_MB MB - too small for a super backup, aborting"; exit 1;
+fi;
+
+echo "Checking archive integrity...";
+if zstd -t "$F" >/dev/null 2>&amp;1; then
+echo "Archive OK";
+elif [ -f "$F.par2" ]; then
+echo "Archive damaged, trying par2 repair...";
+if par2turbo r "$F.par2"; then
+echo "Repair OK";
+else
+echo "ERROR: par2 repair failed, aborting"; exit 1;
+fi;
+else
+echo "ERROR: file corrupt and no par2 available, aborting"; exit 1;
+fi;
+
+PART_BLOCKS="$(blockdev --getsize /dev/block/bootdevice/by-name/super)";
+PART_MB=$(( PART_BLOCKS / 2048 ));
+
+echo "Writing $BN to Super partition...";
+START="$(date +%%s)";
+zstd -d -c "$F" | dd of=/dev/block/bootdevice/by-name/super bs=1M || exit 1;
+END="$(date +%%s)";
+ELAPSED=$(( END - START ));
+if [ "$ELAPSED" -lt 1 ]; then ELAPSED=1; fi;
+MIN=$(( ELAPSED / 60 ));
+SEC=$(( ELAPSED %% 60 ));
+READ_SPD=$(( FILE_MB / ELAPSED ));
+WRITE_SPD=$(( PART_MB / ELAPSED ));
+echo "Restore done";
+echo "Time: $MIN min $SEC sec, read $READ_SPD MB/s, write $WRITE_SPD MB/s";
+				</action>
+			</action>
+
+			<action>
+				<condition var1="tw_operation_state" var2="1"/>
+				<condition var1="tw_operation_status" var2="0"/>
+				<action function="set">tw_text1=Restore complete</action>
+				<action function="page">maintainer_result</action>
+			</action>
+
+			<action>
+				<condition var1="tw_operation_state" var2="1"/>
+				<condition var1="tw_operation_status" op="!=" var2="0"/>
+				<action function="set">tw_text1=Restore FAILED - see output below</action>
+				<action function="page">maintainer_result</action>
+			</action>
+		</page>
+
+		<!-- Общий экран результата -->
+		<page name="maintainer_result">
+			<template name="base_done"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>%tw_text1%</text>
+			</text>
+
+			<button style="btn_raised">
+				<placement x="%btn_raised_left_x%" y="%row_btn1_y%"/>
+				<text>OK</text>
+				<action function="page">maintainer</action>
+			</button>
+
+			<template name="gestures"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">maintainer</action>
+			</action>
+		</page>
+
+	</pages>
+</recovery>
