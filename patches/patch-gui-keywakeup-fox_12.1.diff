@@ -1,0 +1,16 @@
+--- a/gui/gui.cpp
++++ b/gui/gui.cpp
+@@ -245,7 +245,12 @@
+ 	}
+ 
+ #ifndef TW_NO_SCREEN_BLANK
+-	if (!blankTimer.isScreenOff()) {
++	if (blankTimer.isScreenOff()) {
++		// KEY_WAKEUP (e.g. from a double-tap-to-wake gesture driver) is
++		// the only input allowed to unblank the screen while it is off.
++		if (ev.code == KEY_WAKEUP)
++			blankTimer.resetTimerAndUnblank();
++	} else {
+ #endif
+ 	if (ev.code != KEY_POWER && ev.code > KEY_RESERVED)
+ 		blankTimer.resetTimerAndUnblank();
