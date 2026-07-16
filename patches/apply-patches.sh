@@ -28,6 +28,22 @@ else
     echo "WARNING: KEY_WAKEUP patch failed dry-run (gui.cpp upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0b. DT2S: double-tap on the status bar blanks the screen ---
+# Adds double-tap detection (40-400 ms window) in InputHandler::doTouchStart()
+# for the top 5% of the framebuffer (status bar zone). Blanks via the same
+# blankTimer.toggleBlank() used by the screen timeout; wake-up is handled by
+# the KEY_WAKEUP (DT2W) patch above.
+GUI_DT2S_PATCH="$PATCH_DIR/patch-gui-dt2s-statusbar-fox_12.1.diff"
+echo "=== Applying DT2S status bar blank ==="
+if [ ! -f "$GUI_DT2S_PATCH" ]; then
+    echo "WARNING: $GUI_DT2S_PATCH not found, skipping DT2S"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$GUI_DT2S_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$GUI_DT2S_PATCH"
+    echo "DT2S patch applied successfully"
+else
+    echo "WARNING: DT2S patch failed dry-run (gui.cpp upstream context may have changed) - skipping, build continues"
+fi
+
 echo "=== Theme slimming: start ==="
 echo "GUI dir size before:"
 du -sh "$GUI"
