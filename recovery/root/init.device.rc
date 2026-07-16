@@ -4,9 +4,13 @@ on boot
     write /sys/devices/platform/soc/11013000.spi3/spi_master/spi3/spi3.0/fts_gesture_mode 1
     write /sys/devices/platform/soc/11013000.spi3/spi_master/spi3/spi3.0/fts_gesture_mode "1"
 
-# lpdumpd: Binder service required by lpdump; without it lpdump hangs forever.
-# Started unconditionally (no disabled/oneshot) — verified it stays resident and
-# serves repeated lpdump requests in recovery.
+# lpdumpd: Binder service required by lpdump (hangs forever without it).
+# seclabel is mandatory in recovery — without it init silently drops the service.
+# lpdump itself sets sys.lpdumpd=start on invocation, triggering the start below.
 service lpdumpd /system/bin/lpdumpd
     user root
     group root
+    seclabel u:r:recovery:s0
+
+on property:sys.lpdumpd=start
+    start lpdumpd
