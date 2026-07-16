@@ -1,0 +1,27 @@
+--- a/gui/gui.cpp
++++ b/gui/gui.cpp
+@@ -258,6 +258,24 @@
+ void InputHandler::doTouchStart()
+ {
+ 	LOGEVENT("TOUCH_START: %d,%d\n", x, y);
++	// DT2S: double-tap on the status bar (top strip) blanks the screen.
++	// Wake-up is handled by the KEY_WAKEUP (DT2W) patch.
++	if (!blankTimer.isScreenOff() && y < (gr_fb_height() / 20)) {
++		static struct timeval lastBarTap = {0, 0};
++		struct timeval nowTap;
++		gettimeofday(&nowTap, NULL);
++		long tapMs = (nowTap.tv_sec - lastBarTap.tv_sec) * 1000
++			+ (nowTap.tv_usec - lastBarTap.tv_usec) / 1000;
++		if (tapMs > 40 && tapMs < 400) {
++			lastBarTap.tv_sec = 0;
++			lastBarTap.tv_usec = 0;
++			blankTimer.toggleBlank();
++			touch_status = TS_NONE;
++			state = AS_NO_ACTION;
++			return;
++		}
++		lastBarTap = nowTap;
++	}
+ 	if (PageManager::NotifyTouch(TOUCH_START, x, y) > 0)
+ 		state = AS_NO_ACTION;
+ 	else
