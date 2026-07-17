@@ -1834,6 +1834,7 @@
 				<listitem name="TAR">1<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="CPIO">2<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="ZIP">0<condition var1="tw_fm_isfolder" var2="1"/></listitem>
+				<listitem name="TAR+ZSTD">11<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="ZIP">0<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="TAR">1<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem>
 				<listitem name="CPIO">2<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem>
@@ -1842,6 +1843,7 @@
 				<!--listitem name="LZOP">6<condition var1="tw_fm_isfolder" var2="0"/></listitem-->
 				<listitem name="ZLIB (ZZ)">8<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="ZSTD">10<condition var1="tw_fm_isfolder" var2="0"/></listitem>
+				<listitem name="TAR+ZSTD">11<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack .tar.zst in one step -->
 				<listitem name="LZMA">5<condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only -->
 				<listitem name="XZ">7<condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only -->
 				<!--listitem name="Z">9<condition var1="tw_extract_action" var2="0"/></listitem--> <!-- Unpack only -->
@@ -1860,12 +1862,19 @@
 				<condition var1="tw_artype" op="!=" var2="0"/>
 				<condition var1="tw_artype" op="!=" var2="2"/>
 				<condition var1="tw_artype" op="!=" var2="10"/>
+				<condition var1="tw_artype" op="!=" var2="11"/>
 				<condition var1="tw_extract_action" var2="1"/>
 				<data variable="tw_pack_lvl" min="1" max="9" showrange="0" showcurr="0" changeondrag="1"/>
 			</slidervalue>
 			<slidervalue>
 				<placement x="%slider_x%" y="%row6_2_y%" w="%slidervalue_w%"/>
 				<condition var1="tw_artype" var2="10"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<data variable="tw_pack_lvl" min="1" max="19" showrange="0" showcurr="0" changeondrag="1"/>
+			</slidervalue>
+			<slidervalue>
+				<placement x="%slider_x%" y="%row6_2_y%" w="%slidervalue_w%"/>
+				<condition var1="tw_artype" var2="11"/>
 				<condition var1="tw_extract_action" var2="1"/>
 				<data variable="tw_pack_lvl" min="1" max="19" showrange="0" showcurr="0" changeondrag="1"/>
 			</slidervalue>
@@ -1960,6 +1969,24 @@
 			</action>
 
 			<action>
+				<condition var1="tw_artype" var2="11"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" var2="1"/>
+				<condition var1="tw_hold" op="!=" var2="1"/>
+				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf - * | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_file_location1%.tar.zst';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="11"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" var2="1"/>
+				<condition var1="tw_hold" var2="1"/>
+				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf - * | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_filename1%.tar.zst';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
 				<condition var1="tw_artype" var2="0"/>
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
@@ -2023,6 +2050,14 @@
 				<condition var1="tw_artype" var2="10"/>
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
 				<action function="terminalcommand">/sbin/zstd -dv -f '%tw_filename1%';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="11"/>
+				<condition var1="tw_extract_action" op="!=" var2="1"/>
+				<condition var1="tw_fm_isfolder" op="!=" var2="1"/>
+				<action function="terminalcommand">N=$(basename '%tw_selection1%' .tar.zst); mkdir -p "%tw_file_location1%/$N"; /sbin/zstd -dc '%tw_filename1%' | tar -xvf - -C "%tw_file_location1%/$N";</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
