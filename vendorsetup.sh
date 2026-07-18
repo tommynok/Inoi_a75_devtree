@@ -99,6 +99,7 @@ export OF_SKIP_DECRYPTED_ADOPTED_STORAGE=1
 export FOX_ENABLE_KERNELSU_SUPPORT=1
 export FOX_ENABLE_KERNELSU_NEXT_SUPPORT=1
 export FOX_ENABLE_SUKISU_SUPPORT=1
+export FOX_DELETE_MAGISK_ADDON=1
 
 # FRP removal addon - EXPERIMENTAL. No-op unless device has a dedicated frp
 # partition. INOI A75 partition table needs to be checked before relying on this.
