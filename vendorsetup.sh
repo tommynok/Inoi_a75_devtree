@@ -94,6 +94,14 @@ export FOX_USE_FSCK_EROFS_BINARY=1
 
 # skip adopted-storage decryption on A12+; NOTE: only kicks in when the
 export OF_SKIP_DECRYPTED_ADOPTED_STORAGE=1
+
+# skip the second full startup pass OrangeFox runs after FBE decryption
+# (theme reload + reapply_settings page + extra Update_System_Details).
+# Recovery.log confirms this triggers 1 of the 3 "Data backup size" scans
+# per boot; disabling it saves several seconds on top of the Update_Size
+# cache patch. Safe on this device: no FBE prompt, no user-settings drift
+# between the two passes.
+export OF_NO_RELOAD_AFTER_DECRYPTION=1
 # KernelSU install support in Fox Addons (device eligible: VirtualAB + GKI 5.10)
 # ksud (~2.3mb) is shared; all three together cost ~3mb of ramdisk
 export FOX_ENABLE_KERNELSU_SUPPORT=1
