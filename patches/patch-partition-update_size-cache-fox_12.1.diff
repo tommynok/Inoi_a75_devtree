@@ -1,0 +1,48 @@
+--- a/partition.cpp
++++ b/partition.cpp
+@@ -3224,6 +3224,15 @@
+ 
+ bool TWPartition::Update_Size(bool Display_Error) {
+ 	bool ret = false, Was_Already_Mounted = false, ro = false;
++	// OrangeFox: cache expensive Get_Folder_Size() results per recovery session.
++	// Update_System_Details() is invoked 14+ times per boot; each call otherwise
++	// triggers a full recursive walk of /data (~256 app dirs) and /storage,
++	// costing ~30s each on real devices. Cache lives for the whole session;
++	// wipe/restore code paths reset partition state separately.
++	static bool of_data_size_cached = false;
++	static bool of_storage_size_cached = false;
++	static unsigned long long of_cached_data_used = 0;
++	static unsigned long long of_cached_storage_used = 0;
+ 
+ 	Find_Actual_Block_Device();
+ 
+@@ -3261,7 +3270,13 @@
+ 
+ 	if (Has_Data_Media) {
+ 		if (Mount(Display_Error)) {
+-			Used = backup_exclusions.Get_Folder_Size(Mount_Point);
++			if (!of_data_size_cached) {
++				Used = backup_exclusions.Get_Folder_Size(Mount_Point);
++				of_cached_data_used = Used;
++				of_data_size_cached = true;
++			} else {
++				Used = of_cached_data_used;
++			}
+ 			Backup_Size = Used;
+ 			int bak = (int)(Used / 1048576LLU);
+ 			int fre = (int)(Free / 1048576LLU);
+@@ -3285,7 +3300,13 @@
+ 			if (TWFunc::Fox_Property_Get("twrp.decrypt.done") == "true" // either decryption is completed
+ 			|| !PartitionManager.Storage_Is_Encrypted() // or the device is unencrypted
+ 			) {
+-				Used = backup_exclusions.Get_Folder_Size(Mount_Point);
++				if (!of_storage_size_cached) {
++					Used = backup_exclusions.Get_Folder_Size(Mount_Point);
++					of_cached_storage_used = Used;
++					of_storage_size_cached = true;
++				} else {
++					Used = of_cached_storage_used;
++				}
+ 				Backup_Size = Used;
+ 			}
+ 		} else {
