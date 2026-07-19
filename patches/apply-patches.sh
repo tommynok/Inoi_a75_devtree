@@ -1,121 +1,100 @@
-#
-#	This file is part of the OrangeFox Recovery Project
-# 	Copyright (C) 2024-2025 The OrangeFox Recovery Project
-#
-#	OrangeFox is free software: you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation, either version 3 of the License, or
-#	any later version.
-#
-#	OrangeFox is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
-#
-# 	This software is released under GPL version 3 or any later version.
-#	See <http://www.gnu.org/licenses/>.
-#
-# 	Please maintain this if you use this script or any part of it
-#
-#set -o xtrace
+#!/bin/bash
+# Slim OrangeFox theme: remove unused fonts and all languages except en/ru.
+# Usage: apply-patches.sh <fox_source_root>   (e.g. .../workspace/fox_12.1)
+# Runs after source sync, before build. Deletes files only - never touches
+# ui.xml or theme structure (theme version mismatch => GUI bootloop).
+set -e
+FOX="$1"
+if [ -z "$FOX" ] || [ ! -d "$FOX/bootable/recovery/gui" ]; then
+    echo "ERROR: pass fox source root as arg1 (got: '$FOX')"
+    exit 1
+fi
+GUI="$FOX/bootable/recovery/gui"
+PATCH_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-FDEVICE="INOI_A75"
-
-fetch_mt6789_common_repo() {
-	local URL=https://github.com/tommynok/recovery_mt6789-common.git
-	local common=device/alldocube/mt6789-common
-	if [ ! -d $common ]; then
-		echo "Cloning $URL ... to $common"
-		git clone $URL -b main $common
-	else
-		echo "Device common repository: \"$common\" found ..."
-	fi
-}
-
-# Clone to fix build on minimal manifest
-if [ ! -d external/gflags ]; then
-	git clone https://android.googlesource.com/platform/external/gflags/ -b android-12.1.0_r4 external/gflags
+# --- 0. Fix DT2W wake-from-blanked-screen bug in gui.cpp ---
+# Upstream InputHandler::processInput() only calls resetTimerAndUnblank()
+# while the screen is NOT already off, so a KEY_WAKEUP event from a
+# double-tap-to-wake gesture driver can never turn the screen back on.
+# This patch adds an explicit exception for KEY_WAKEUP while blanked.
+GUI_WAKE_PATCH="$PATCH_DIR/patch-gui-keywakeup-fox_12.1.diff"
+echo "=== Applying KEY_WAKEUP unblank fix ==="
+if [ ! -f "$GUI_WAKE_PATCH" ]; then
+    echo "WARNING: $GUI_WAKE_PATCH not found, skipping KEY_WAKEUP fix"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$GUI_WAKE_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$GUI_WAKE_PATCH"
+    echo "KEY_WAKEUP patch applied successfully"
 else
-	echo "external/gflags already exists, skipping clone"
+    echo "WARNING: KEY_WAKEUP patch failed dry-run (gui.cpp upstream context may have changed) - skipping, build continues"
 fi
 
-# mt6789-common
-fetch_mt6789_common_repo
-
-# ccache
-export USE_CCACHE=1
-export CCACHE_EXEC=/usr/bin/ccache
-export CCACHE_MAXSIZE="10G"
-export CCACHE_DIR="$HOME/.ccache"
-if [ ! -d ${CCACHE_DIR} ]; then
-	mkdir $CCACHE_DIR
+# --- 0b. DT2S: double-tap on the status bar blanks the screen ---
+# Adds double-tap detection (40-400 ms window) in InputHandler::doTouchStart()
+# for the top 5% of the framebuffer (status bar zone). Blanks via the same
+# blankTimer.toggleBlank() used by the screen timeout; wake-up is handled by
+# the KEY_WAKEUP (DT2W) patch above.
+GUI_DT2S_PATCH="$PATCH_DIR/patch-gui-dt2s-statusbar-fox_12.1.diff"
+echo "=== Applying DT2S status bar blank ==="
+if [ ! -f "$GUI_DT2S_PATCH" ]; then
+    echo "WARNING: $GUI_DT2S_PATCH not found, skipping DT2S"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$GUI_DT2S_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$GUI_DT2S_PATCH"
+    echo "DT2S patch applied successfully"
+else
+    echo "WARNING: DT2S patch failed dry-run (gui.cpp upstream context may have changed) - skipping, build continues"
 fi
 
-# OrangeFox build vars
-# official prebuilt zstd is v1.4.7 (2020): +20% backup time, worse ratio
-# vs the manually shipped 1.5.x binary in the tree - keep disabled.
-# FOX_USE_ZSTD_BINARY is dead in this CI pipeline anyway (our zstd is placed
-# by hand at recovery/root/sbin/zstd); left =0 for clarity, do not set =1.
-export FOX_USE_ZSTD_BINARY=0
+echo "=== Theme slimming: start ==="
+echo "GUI dir size before:"
+du -sh "$GUI"
 
-# --- device identity / partitions (migrated from BoardConfigCommon.mk;
-#     FOX_* must be shell exports, not .mk declarations) ---
-# FOX_VIRTUAL_AB_DEVICE=1 auto-enables FOX_AB_DEVICE and FOX_VANILLA_BUILD,
-# so those are not repeated here.
-export FOX_VIRTUAL_AB_DEVICE=1
-export FOX_ENABLE_APP_MANAGER=1
-export FOX_RECOVERY_SYSTEM_PARTITION=/dev/block/mapper/system
-export FOX_RECOVERY_VENDOR_PARTITION=/dev/block/mapper/vendor
-export FOX_DELETE_AROMAFM=1
+# --- 1. Fonts: delete-list (verified unused, 0 references in theme XML) ---
+# Roboto* and GoogleSans* are BOTH required (different UI layers) - never touch.
+# NOTE: FiraCode-Medium is NOT dead despite 0 static refs in theme XML:
+# the font picker writes /sdcard/Fox/.theme/font.xml referencing <Name>-Medium.ttf
+# dynamically; deleting it bootloops the GUI if the user ever picks FiraCode.
+DEAD_FONTS="DroidSansFallback.ttf NotoSansCJKjp-Regular.ttf Chococooky.ttf ae_Cortoba.ttf Roboto-Spanish.ttf"
+for f in $DEAD_FONTS; do
+    found=$(find "$GUI" -type f -name "$f")
+    if [ -n "$found" ]; then
+        echo "$found" | while read -r p; do
+            echo "DEL font: $p ($(stat -c%s "$p") bytes)"
+            rm -f "$p"
+        done
+    else
+        echo "skip (not found): $f"
+    fi
+done
 
-# --- shell / editor ---
-export FOX_USE_BASH_SHELL=1
-export FOX_ASH_IS_BASH=1
-export FOX_USE_NANO_EDITOR=1
+# --- 2. Languages: keep-list (en + ru), delete the rest ---
+KEEP="en.xml ru.xml"
+find "$GUI" -type d -name "languages" | while read -r d; do
+    echo "languages dir: $d"
+    for x in "$d"/*.xml; do
+        [ -e "$x" ] || continue
+        base=$(basename "$x")
+        keep=0
+        for k in $KEEP; do
+            if [ "$base" = "$k" ]; then keep=1; fi
+        done
+        if [ "$keep" = "1" ]; then
+            echo "KEEP lang: $x"
+        else
+            echo "DEL  lang: $x ($(stat -c%s "$x") bytes)"
+            rm -f "$x"
+        fi
+    done
+done
 
-# --- bundled binaries ---
-export FOX_USE_TAR_BINARY=1
-export FOX_USE_LZ4_BINARY=1
-export FOX_USE_SED_BINARY=1
-export FOX_USE_XZ_UTILS=1
-# full GNU grep (~tiny) instead of toybox grep - toybox grep lacks -P and is
-# flaky with -r; we grep constantly during on-device debugging.
-export FOX_USE_GREP_BINARY=1
-# prebuilt fsck.erofs (/sbin/fsck.erofs) - small; lets us fsck erofs images
-# in recovery. Test on-device before relying on it.
-export FOX_USE_FSCK_EROFS_BINARY=1
+# --- 3. Sanity: en.xml must survive somewhere, warn if ru.xml absent ---
+if [ -z "$(find "$GUI" -path '*languages*' -name 'en.xml')" ]; then
+    echo "ERROR: en.xml missing after cleanup - aborting build"
+    exit 1
+fi
+if [ -z "$(find "$GUI" -path '*languages*' -name 'ru.xml')" ]; then
+    echo "WARNING: ru.xml not found in source theme - build will be English-only"
+fi
 
-# Magisk: FOX_USE_SPECIFIC_MAGISK_ZIP was pointing at ~/Magisk/Magisk-v28.1.zip
-# (a) it's FOX_* declared in .mk = wrong scope, (b) the path doesn't exist on
-# the GitHub Actions runner, so it was a dead no-op. Removed. With it unset,
-# the Fox Magisk addon menu offers the current bundled Magisk (30.6) at runtime,
-# which is what we actually want. Do NOT re-add unless a specific pinned version
-# is required AND the zip is fetched into the runner first.
-
-# skip adopted-storage decryption on A12+; NOTE: only kicks in when the
-export OF_SKIP_DECRYPTED_ADOPTED_STORAGE=1
-
-# skip the second full startup pass OrangeFox runs after FBE decryption
-# (theme reload + reapply_settings page + extra Update_System_Details).
-# Recovery.log confirms this triggers 1 of the 3 "Data backup size" scans
-# per boot; disabling it saves several seconds on top of the Update_Size
-# cache patch. Safe on this device: no FBE prompt, no user-settings drift
-# between the two passes.
-export OF_NO_RELOAD_AFTER_DECRYPTION=1
-# KernelSU install support in Fox Addons (device eligible: VirtualAB + GKI 5.10)
-# ksud (~2.3mb) is shared; all three together cost ~3mb of ramdisk
-export FOX_ENABLE_KERNELSU_SUPPORT=1
-export FOX_ENABLE_KERNELSU_NEXT_SUPPORT=1
-export FOX_ENABLE_SUKISU_SUPPORT=1
-export FOX_DELETE_MAGISK_ADDON=1
-
-# FRP removal addon - EXPERIMENTAL. No-op unless device has a dedicated frp
-# partition. INOI A75 partition table needs to be checked before relying on this.
-export OF_ENABLE_FRP_ADDON=1
-
-# UPX-compress executables >128kb in /sbin and /system/bin - EXPERIMENTAL.
-# Risk: binaries invoked directly via GUI "cmd" actions (maintainer.xml) need
-# instant exec; UPX adds a self-decompress step on every launch. Test each
-# affected binary (zstd, par2turbo, ksud, busybox) individually before enabling
-# broadly. maintainer.xml itself is not an executable and is unaffected.
-export FOX_COMPRESS_EXECUTABLES=0
+echo "GUI dir size after:"
+du -sh "$GUI"
+echo "=== Theme slimming: done ==="
