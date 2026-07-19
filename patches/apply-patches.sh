@@ -44,6 +44,24 @@ else
     echo "WARNING: DT2S patch failed dry-run (gui.cpp upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0c. Cache Get_Folder_Size() results in TWPartition::Update_Size() ---
+# Update_System_Details() is called 14+ times per recovery boot; each call
+# triggers full recursive walks of /data (~256 app dirs) and /storage,
+# costing ~30s each on real user devices. Log shows three consecutive
+# "Data backup size is ..." with identical result, hence the 3x slowdown
+# vs TWRP. Cache is a per-session static; wipe/restore reset partition
+# state via other code paths and don't rely on this recompute.
+GUI_UPDSIZE_PATCH="$PATCH_DIR/patch-partition-update_size-cache-fox_12.1.diff"
+echo "=== Applying Update_Size() cache ==="
+if [ ! -f "$GUI_UPDSIZE_PATCH" ]; then
+    echo "WARNING: $GUI_UPDSIZE_PATCH not found, skipping Update_Size cache"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$GUI_UPDSIZE_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$GUI_UPDSIZE_PATCH"
+    echo "Update_Size cache patch applied successfully"
+else
+    echo "WARNING: Update_Size cache patch failed dry-run (partition.cpp upstream context may have changed) - skipping, build continues"
+fi
+
 echo "=== Theme slimming: start ==="
 echo "GUI dir size before:"
 du -sh "$GUI"
