@@ -408,6 +408,13 @@
 		</page>
 				
 		<page name="files_redirect">
+			<!-- Start every file with a blank archive password, so a value typed
+			     for one archive is never silently reused for the next one. -->
+			<action>
+				<action function="set">tw_7z_pass=</action>
+				<action function="set">tw_7z_pass_disp=</action>
+			</action>
+
 			<action>
 				<condition var1="of_support_ozip_decryption" var2="1"/>
 				<condition var1="tw_file_extension" var2="ozip"/>
@@ -1875,6 +1882,53 @@
 				<condition var1="tw_artype" op="!=" var2="1"/>
 				<text>{@arc_lvl_title}</text>
 			</text>
+
+			<!-- Password for encrypted 7z/rar archives. Typing needs the keyboard
+			     templates, which this page does not use, so the field itself lives
+			     on the archive_pass page and this is just the way in. Shown only
+			     while unpacking, in the space the pack-level slider occupies. -->
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row5_3a_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>Password: %tw_7z_pass_disp%</text>
+			</text>
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row5_3a_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<text>Password: %tw_7z_pass_disp%</text>
+			</text>
+
+			<button>
+				<placement x="0" y="%row6_1a_y%" w="%screen_w%" h="%input_height%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="page">archive_pass</action>
+			</button>
+			<button>
+				<placement x="0" y="%row6_1a_y%" w="%screen_w%" h="%input_height%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="page">archive_pass</action>
+			</button>
+
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row6_1a_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>Tap to set (encrypted archives only)</text>
+			</text>
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row6_1a_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<text>Tap to set (encrypted archives only)</text>
+			</text>
 			<slidervalue>
 				<placement x="%slider_x%" y="%row6_2_y%" w="%slidervalue_w%"/>
 				<condition var1="tw_artype" op="!=" var2="1"/>
@@ -1938,6 +1992,56 @@
 			<action>
 				<touch key="home"/>
 				<action function="page">main</action>
+			</action>
+		</page>
+
+		<page name="archive_pass">
+			<template name="base_ex_key"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>Password</text>
+			</text>
+
+			<text style="text_ab_subtitle_lim">
+				<placement x="%col1_x%" y="%row1_2_y%"/>
+				<text>%tw_filename1%</text>
+			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x%" y="%row2_1a_y%"/>
+				<text>Leave empty if the archive is not encrypted</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x%" y="%row2_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%tw_7z_pass_disp%</text>
+				<data name="tw_7z_pass" mask="*" maskvariable="tw_7z_pass_disp"/>
+				<actions>
+					<action function="overlay"/>
+					<action function="page">archive_confirm</action>
+				</actions>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x%" y="%row2_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
+
+			<template name="gestures_key"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">archive_confirm</action>
 			</action>
 		</page>
 
@@ -2109,14 +2213,14 @@
 			<action>
 				<condition var1="tw_artype" var2="12"/>
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
-				<action function="terminalcommand">/sbin/7zzs x -y -p '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
+				<action function="terminalcommand">/sbin/7zzs x -y -p'%tw_7z_pass%' '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
 			<action>
 				<condition var1="tw_artype" var2="13"/>
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
-				<action function="terminalcommand">/sbin/7zzs x -y -p '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
+				<action function="terminalcommand">/sbin/7zzs x -y -p'%tw_7z_pass%' '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
