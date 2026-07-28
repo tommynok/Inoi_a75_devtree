@@ -2109,14 +2109,14 @@
 			<action>
 				<condition var1="tw_artype" var2="12"/>
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
-				<action function="terminalcommand">/sbin/7zzs x -y '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
+				<action function="terminalcommand">/sbin/7zzs x -y -p '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
 			<action>
 				<condition var1="tw_artype" var2="13"/>
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
-				<action function="terminalcommand">/sbin/7zzs x -y '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
+				<action function="terminalcommand">/sbin/7zzs x -y -p '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
