@@ -1885,23 +1885,38 @@
 
 			<!-- Password for encrypted 7z/rar archives. Typing needs the keyboard
 			     templates, which this page does not use, so the field itself lives
-			     on the archive_pass page and this is just the way in. Shown only
-			     while unpacking, in the space the pack-level slider occupies. -->
+			     on the archive_pass page and this is only the way in.
+			     Placed below the archive-type listbox (row2_2a_y + lb_l10 ends at
+			     1470) and above the confirm slider caption (screen_h-425), the one
+			     band that is free while unpacking, when the listbox is full. -->
 			<text style="caption">
-				<placement x="%gl_text_x%" y="%row5_3a_y%"/>
+				<placement x="%gl_text_x%" y="%row8_1_y%"/>
 				<condition var1="tw_extract_action" var2="0"/>
 				<condition var1="tw_artype" var2="12"/>
 				<text>Password: %tw_7z_pass_disp%</text>
 			</text>
 			<text style="caption">
-				<placement x="%gl_text_x%" y="%row5_3a_y%"/>
+				<placement x="%gl_text_x%" y="%row8_1_y%"/>
 				<condition var1="tw_extract_action" var2="0"/>
 				<condition var1="tw_artype" var2="13"/>
 				<text>Password: %tw_7z_pass_disp%</text>
 			</text>
 
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row8_2_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>Tap to set (encrypted archives only)</text>
+			</text>
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row8_2_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<text>Tap to set (encrypted archives only)</text>
+			</text>
+
 			<button>
-				<placement x="0" y="%row6_1a_y%" w="%screen_w%" h="%input_height%"/>
+				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
 				<condition var1="tw_extract_action" var2="0"/>
 				<condition var1="tw_artype" var2="12"/>
 				<highlight color="%highlight_color%"/>
@@ -1909,26 +1924,13 @@
 				<action function="page">archive_pass</action>
 			</button>
 			<button>
-				<placement x="0" y="%row6_1a_y%" w="%screen_w%" h="%input_height%"/>
+				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
 				<condition var1="tw_extract_action" var2="0"/>
 				<condition var1="tw_artype" var2="13"/>
 				<highlight color="%highlight_color%"/>
 				<fill color="%transparent%"/>
 				<action function="page">archive_pass</action>
 			</button>
-
-			<text style="text_body1">
-				<placement x="%col1_x_indent%" y="%row6_1a_y%"/>
-				<condition var1="tw_extract_action" var2="0"/>
-				<condition var1="tw_artype" var2="12"/>
-				<text>Tap to set (encrypted archives only)</text>
-			</text>
-			<text style="text_body1">
-				<placement x="%col1_x_indent%" y="%row6_1a_y%"/>
-				<condition var1="tw_extract_action" var2="0"/>
-				<condition var1="tw_artype" var2="13"/>
-				<text>Tap to set (encrypted archives only)</text>
-			</text>
 			<slidervalue>
 				<placement x="%slider_x%" y="%row6_2_y%" w="%slidervalue_w%"/>
 				<condition var1="tw_artype" op="!=" var2="1"/>
