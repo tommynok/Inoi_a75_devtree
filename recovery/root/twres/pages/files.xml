@@ -556,6 +556,22 @@
 				<action function="page">archive_confirm</action>
 			</action>
 
+			<action>
+				<condition var1="tw_file_extension" var2="7z"/>
+				<action function="set">fex_found=1</action>
+				<action function="set">tw_artype=12</action>
+				<action function="set">tw_extract_action=0</action>
+				<action function="page">archive_confirm</action>
+			</action>
+
+			<action>
+				<condition var1="tw_file_extension" var2="rar"/>
+				<action function="set">fex_found=1</action>
+				<action function="set">tw_artype=13</action>
+				<action function="set">tw_extract_action=0</action>
+				<action function="page">archive_confirm</action>
+			</action>
+
 			<!--action>
 				<condition var1="tw_file_extension" var2="z"/>
 				<action function="set">fex_found=1</action>
@@ -1835,6 +1851,7 @@
 				<listitem name="CPIO">2<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="ZIP">0<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="TAR+ZSTD">11<condition var1="tw_fm_isfolder" var2="1"/></listitem>
+				<listitem name="7Z">12<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="ZIP">0<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="TAR">1<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem>
 				<listitem name="CPIO">2<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem>
@@ -1844,6 +1861,8 @@
 				<listitem name="ZLIB (ZZ)">8<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="ZSTD">10<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="TAR+ZSTD">11<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack .tar.zst in one step -->
+				<listitem name="7Z">12<condition var1="tw_fm_isfolder" var2="0"/></listitem>
+				<listitem name="RAR">13<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only: 7-Zip cannot create RAR -->
 				<listitem name="LZMA">5<condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only -->
 				<listitem name="XZ">7<condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only -->
 				<!--listitem name="Z">9<condition var1="tw_extract_action" var2="0"/></listitem--> <!-- Unpack only -->
@@ -1987,6 +2006,32 @@
 			</action>
 
 			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" var2="1"/>
+				<condition var1="tw_hold" op="!=" var2="1"/>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%.7z' *;</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" var2="1"/>
+				<condition var1="tw_hold" var2="1"/>
+				<action function="terminalcommand">cd '%tw_filename1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_filename1%.7z' *;</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" op="!=" var2="1"/>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_filename1%.7z' '%tw_selection1%';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
 				<condition var1="tw_artype" var2="0"/>
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
@@ -2058,6 +2103,20 @@
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
 				<condition var1="tw_fm_isfolder" op="!=" var2="1"/>
 				<action function="terminalcommand">N=$(basename '%tw_selection1%' .tar.zst); mkdir -p "%tw_file_location1%/$N"; /sbin/zstd -dc '%tw_filename1%' | tar -xvf - -C "%tw_file_location1%/$N";</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" op="!=" var2="1"/>
+				<action function="terminalcommand">/sbin/7zzs x -y '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="13"/>
+				<condition var1="tw_extract_action" op="!=" var2="1"/>
+				<action function="terminalcommand">/sbin/7zzs x -y '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
