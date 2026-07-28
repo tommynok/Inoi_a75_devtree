@@ -1974,7 +1974,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf '%tw_file_location1%.tar' *;</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf '%tw_file_location1%.tar' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -1983,7 +1983,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" var2="1"/>
-				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf '%tw_filename1%.tar' *;</action>
+				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf '%tw_filename1%.tar' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -1992,7 +1992,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf - * | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_file_location1%.tar.zst';</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf - . | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_file_location1%.tar.zst';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2001,7 +2001,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" var2="1"/>
-				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf - * | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_filename1%.tar.zst';</action>
+				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf - . | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_filename1%.tar.zst';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2010,7 +2010,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%.7z' *;</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%.7z' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2019,7 +2019,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" var2="1"/>
-				<action function="terminalcommand">cd '%tw_filename1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_filename1%.7z' *;</action>
+				<action function="terminalcommand">cd '%tw_filename1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_filename1%.7z' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
