@@ -119,10 +119,13 @@ export OF_ENABLE_FRP_ADDON=1
 # affected binary (zstd, par2turbo, ksud, busybox) individually before enabling
 # broadly. maintainer.xml itself is not an executable and is unaffected.
 export FOX_COMPRESS_EXECUTABLES=0
-# Build tag, shown on the About screen as "Version: <value>".
+# Build tag, shown on the About screen as "Build type: <value>"
+# (orangefox.mk feeds FOX_BUILD_TYPE into the fox_build_type1 GUI constant).
 # Used to tell test builds apart on the device itself: the backup-exclusion
 # build and the later guard-removal build are otherwise identical on sight.
-export FOX_VERSION=12.0_exclfox
+# FOX_VERSION cannot serve this purpose -- orangefox.mk raises a hard build
+# error on it, it is obsolete in favour of FOX_MAINTAINER_PATCH_VERSION.
+export FOX_BUILD_TYPE=ExclFox
 
 ln -sf gnused device/inoi/INOI_A75/recovery/root/sbin/sed
 ln -sf gnutar device/inoi/INOI_A75/recovery/root/sbin/tar
