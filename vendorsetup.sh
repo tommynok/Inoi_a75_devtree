@@ -119,5 +119,10 @@ export OF_ENABLE_FRP_ADDON=1
 # affected binary (zstd, par2turbo, ksud, busybox) individually before enabling
 # broadly. maintainer.xml itself is not an executable and is unaffected.
 export FOX_COMPRESS_EXECUTABLES=0
+# Build tag, shown on the About screen as "Version: <value>".
+# Used to tell test builds apart on the device itself: the backup-exclusion
+# build and the later guard-removal build are otherwise identical on sight.
+export FOX_VERSION=12.0_exclfox
+
 ln -sf gnused device/inoi/INOI_A75/recovery/root/sbin/sed
 ln -sf gnutar device/inoi/INOI_A75/recovery/root/sbin/tar
