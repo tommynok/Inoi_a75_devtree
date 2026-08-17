@@ -28,7 +28,29 @@
  void TWPartition::ExcludeAll(const string& path) {
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
-@@ -1184,7 +1184,11 @@
+@@ -1150,9 +1150,12 @@
+ 		return true;
+ 	}
+ backup_error:
+-	Clean_Backup_Folder(part_settings->Backup_Folder);
++	// Save the log before cleaning, not after: cleaning now removes the folder
++	// itself, and copying into a folder that is already gone only produced a
++	// "No such file or directory" error on screen.
+ 	TWFunc::copy_file("/tmp/recovery.log", backup_log, 0644);
+ 	tw_set_default_metadata(backup_log.c_str());
++	Clean_Backup_Folder(part_settings->Backup_Folder);
+ 	TWFunc::SetPerformanceMode(false);
+ 	return false;
+ }
+@@ -1168,6 +1171,7 @@
+ 	ext.push_back("md5");
+ 	ext.push_back("sha2");
+ 	ext.push_back("info");
++	ext.push_back("log");
+ 
+ 	gui_msg("backup_clean=Backup Failed. Cleaning Backup Folder.");
+ 
+@@ -1184,7 +1188,11 @@
  
  		size_t dot = path.find_last_of(".") + 1;
  		for (vector<string>::const_iterator i = ext.begin(); i != ext.end(); ++i) {
@@ -41,7 +63,7 @@
  				r = unlink(path.c_str());
  				if (r != 0)
  					LOGINFO("Unable to unlink '%s: %s'\n", path.c_str(), strerror(errno));
-@@ -1192,6 +1196,11 @@
+@@ -1192,6 +1200,11 @@
  		}
  	}
  	closedir(d);
@@ -53,7 +75,7 @@
  }
  
  int TWPartitionManager::Check_Backup_Cancel() {
-@@ -1375,9 +1384,18 @@
+@@ -1375,9 +1388,18 @@
          	{ 
            	   if (strstr(part_settings.Backup_Folder.c_str(), "data/media/0"))
               		{
