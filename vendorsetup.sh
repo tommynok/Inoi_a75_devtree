@@ -125,7 +125,7 @@ export FOX_COMPRESS_EXECUTABLES=0
 # build and the later guard-removal build are otherwise identical on sight.
 # FOX_VERSION cannot serve this purpose -- orangefox.mk raises a hard build
 # error on it, it is obsolete in favour of FOX_MAINTAINER_PATCH_VERSION.
-export FOX_BUILD_TYPE=ExclFox
+export FOX_BUILD_TYPE=NoGuard
 
 ln -sf gnused device/inoi/INOI_A75/recovery/root/sbin/sed
 ln -sf gnutar device/inoi/INOI_A75/recovery/root/sbin/tar

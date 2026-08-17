@@ -1,0 +1,59 @@
+--- a/partition.cpp
++++ b/partition.cpp
+@@ -686,6 +686,23 @@
+ 		Setup_Data_Partition(Display_Error);
+ 	else if (Mount_Point == "/cache")
+ 		Setup_Cache_Partition(Display_Error);
++
++#ifdef TW_BACKUP_EXCLUSIONS
++	// backup_exclusions is a per-partition member, and the TW_BACKUP_EXCLUSIONS
++	// list is otherwise only read in Setup_Data_Media(), which runs for /data
++	// alone. /data already excludes /data/media wholesale, so board-defined
++	// exclusions could never affect anything. Apply them to every partition
++	// here instead, which is what a board-level exclusion list implies -- and
++	// what makes them reach an internal-storage mount point such as /storage.
++	{
++		std::vector<std::string> board_exclusions = TWFunc::Split_String(TW_BACKUP_EXCLUSIONS, ",");
++		for (const std::string& excl : board_exclusions) {
++			std::string trimmed = TWFunc::trim(excl);
++			if (!trimmed.empty())
++				backup_exclusions.add_absolute_dir(trimmed);
++		}
++	}
++#endif
+ }
+ 
+ void TWPartition::ExcludeAll(const string& path) {
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -1375,9 +1375,18 @@
+         	{ 
+           	   if (strstr(part_settings.Backup_Folder.c_str(), "data/media/0"))
+              		{
++#ifdef TW_ALLOW_INTERNAL_SELF_BACKUP
++                	   // The board opts into this, having excluded the backup
++                	   // destination via TW_BACKUP_EXCLUSIONS. tar still reads a
++                	   // file that is growing underneath it if that exclusion is
++                	   // wrong or missing, so the destination folder must be
++                	   // covered there before enabling this.
++                	   gui_msg("fox_internal_q1=OrangeFox - Internal Storage - take care!");
++#else
+                 	   gui_err("fox_internal_fatal_i1=OrangeFox: FATAL ERROR! You cannot backup Internal Storage onto itself!");
+                 	   gui_err("fox_internal_fatal_i2=You MUST change the backup destination to MicroSD/USB-OTG.");
+                 	   return false;
++#endif
+              		} 
+              		   else gui_msg("fox_internal_q1=OrangeFox - Internal Storage - take care!");
+         	}
+--- a/Android.mk
++++ b/Android.mk
+@@ -458,6 +458,9 @@
+ ifneq ($(TW_BACKUP_EXCLUSIONS),)
+     LOCAL_CFLAGS += -DTW_BACKUP_EXCLUSIONS='"$(TW_BACKUP_EXCLUSIONS)"'
+ endif
++ifeq ($(TW_ALLOW_INTERNAL_SELF_BACKUP), true)
++    LOCAL_CFLAGS += -DTW_ALLOW_INTERNAL_SELF_BACKUP
++endif
+ ifeq ($(TW_INCLUDE_FASTBOOTD), true)
+     LOCAL_CFLAGS += -DTW_INCLUDE_FASTBOOTD
+ endif

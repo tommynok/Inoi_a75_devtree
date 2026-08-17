@@ -62,6 +62,25 @@ else
     echo "WARNING: Update_Size cache patch failed dry-run (partition.cpp upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0d. Board backup exclusions for every partition + internal self-backup ---
+# TW_BACKUP_EXCLUSIONS is only read in Setup_Data_Media(), which runs for /data
+# alone, and /data already excludes /data/media wholesale - so the board list
+# never reached the /storage mount point and had no effect at all. This moves
+# the list into Partition_Post_Processing(), which runs for every partition.
+# It also gates the "cannot backup Internal Storage onto itself" abort behind
+# TW_ALLOW_INTERNAL_SELF_BACKUP, so the board can opt in once the destination
+# folder is covered by the exclusions.
+BACKUP_EXCL_PATCH="$PATCH_DIR/patch-backup-exclusions-internal-fox_12.1.diff"
+echo "=== Applying backup exclusions / internal self-backup ==="
+if [ ! -f "$BACKUP_EXCL_PATCH" ]; then
+    echo "WARNING: $BACKUP_EXCL_PATCH not found, skipping backup exclusions fix"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$BACKUP_EXCL_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$BACKUP_EXCL_PATCH"
+    echo "Backup exclusions patch applied successfully"
+else
+    echo "WARNING: backup exclusions patch failed dry-run (partition.cpp/partitionmanager.cpp/Android.mk upstream context may have changed) - skipping, build continues"
+fi
+
 echo "=== Theme slimming: start ==="
 echo "GUI dir size before:"
 du -sh "$GUI"

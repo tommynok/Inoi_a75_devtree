@@ -58,3 +58,8 @@ override TW_MAX_BRIGHTNESS := 255
 # mount-point spelling is the one that actually matches. The /data/media/0
 # spelling is kept for code paths that walk the real path instead.
 TW_BACKUP_EXCLUSIONS := /storage/Fox,/data/media/0/Fox
+
+# Allow internal storage to be backed up onto itself. Upstream aborts this
+# outright; the patch in patches/ turns the abort into a warning when this is
+# set. Only safe because the line above excludes the destination folder.
+TW_ALLOW_INTERNAL_SELF_BACKUP := true
