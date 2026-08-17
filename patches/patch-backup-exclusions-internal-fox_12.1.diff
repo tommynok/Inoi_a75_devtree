@@ -1,6 +1,6 @@
 --- a/partition.cpp
 +++ b/partition.cpp
-@@ -686,6 +686,23 @@
+@@ -686,6 +686,25 @@
  		Setup_Data_Partition(Display_Error);
  	else if (Mount_Point == "/cache")
  		Setup_Cache_Partition(Display_Error);
@@ -16,8 +16,10 @@
 +		std::vector<std::string> board_exclusions = TWFunc::Split_String(TW_BACKUP_EXCLUSIONS, ",");
 +		for (const std::string& excl : board_exclusions) {
 +			std::string trimmed = TWFunc::trim(excl);
-+			if (!trimmed.empty())
++			if (!trimmed.empty()) {
 +				backup_exclusions.add_absolute_dir(trimmed);
++				LOGINFO("Board exclusion '%s' added to partition '%s'\n", trimmed.c_str(), Mount_Point.c_str());
++			}
 +		}
 +	}
 +#endif
