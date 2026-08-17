@@ -51,4 +51,10 @@ override TW_MAX_BRIGHTNESS := 255
 # matters for the /storage bind mount added in the common tree's twrp.flags,
 # which backs up internal storage as its own entry: without this, every
 # previous OrangeFox backup (~25 GiB here) is dragged into the new one.
-TW_BACKUP_EXCLUSIONS := /data/media/0/Fox
+#
+# Paths are matched by exact string (exclude.cpp, check_absolute_skip_dirs),
+# against names produced by walking the mount point. That walk starts at
+# /storage, so it yields /storage/Fox and never /data/media/0/Fox -- the
+# mount-point spelling is the one that actually matches. The /data/media/0
+# spelling is kept for code paths that walk the real path instead.
+TW_BACKUP_EXCLUSIONS := /storage/Fox,/data/media/0/Fox
