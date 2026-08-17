@@ -28,7 +28,32 @@
  void TWPartition::ExcludeAll(const string& path) {
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
-@@ -1375,9 +1375,18 @@
+@@ -1184,7 +1184,11 @@
+ 
+ 		size_t dot = path.find_last_of(".") + 1;
+ 		for (vector<string>::const_iterator i = ext.begin(); i != ext.end(); ++i) {
+-			if (path.substr(dot) == *i) {
++			// Match on the start of the extension, not the whole of it: a
++			// backup that was split into several archives ends in win000,
++			// win001 and so on, none of which equal "win", so an exact
++			// comparison left every part of a split backup behind.
++			if (path.compare(dot, i->length(), *i) == 0) {
+ 				r = unlink(path.c_str());
+ 				if (r != 0)
+ 					LOGINFO("Unable to unlink '%s: %s'\n", path.c_str(), strerror(errno));
+@@ -1192,6 +1196,11 @@
+ 		}
+ 	}
+ 	closedir(d);
++
++	// Drop the now-empty folder too, so a failed backup leaves nothing at all.
++	// rmdir refuses a non-empty directory, so anything unexpected is kept.
++	if (rmdir(Backup_Folder.c_str()) != 0)
++		LOGINFO("Backup folder '%s' not removed: %s\n", Backup_Folder.c_str(), strerror(errno));
+ }
+ 
+ int TWPartitionManager::Check_Backup_Cancel() {
+@@ -1375,9 +1384,18 @@
          	{ 
            	   if (strstr(part_settings.Backup_Folder.c_str(), "data/media/0"))
               		{
@@ -59,3 +84,30 @@
  ifeq ($(TW_INCLUDE_FASTBOOTD), true)
      LOCAL_CFLAGS += -DTW_INCLUDE_FASTBOOTD
  endif
+--- a/twrp-functions.cpp
++++ b/twrp-functions.cpp
+@@ -1214,7 +1214,11 @@
+   if (d)
+     {
+       struct dirent *p;
+-      while (!r && (p = readdir(d)))
++      int failed = 0;
++      // Keep going after a failure instead of stopping at the first one: a
++      // cancelled backup leaves the archive the killed tar was still holding,
++      // and aborting there left every remaining file of that backup on disk.
++      while ((p = readdir(d)))
+ 	{
+ 	  if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+ 	    continue;
+@@ -1242,8 +1246,11 @@
+ 			  strerror(errno));
+ 		}
+ 	    }
++	  if (r)
++	    failed = r;
+ 	}
+       closedir(d);
++      r = failed;
+ 
+       if (!r)
+ 	{
