@@ -335,6 +335,12 @@
 					<action function="set">tw_back=choosedestinationfolder</action>
 					<action function="page">choosedestinationfolder</action>
 				</listitem>
+				<listitem name="{@fm_open_makezip}">
+					<icon res="archive"/>
+					<action function="generatebackupname"/>
+					<action function="set">of_pack_name=%tw_backup_name%</action>
+					<action function="page">fm_ms_pack</action>
+				</listitem>
 				<listitem name="{@fm_delete_btn}">
 					<icon res="delete"/>
 					<action function="set">of_batch_cmd_d=rm -rf</action>
@@ -2318,6 +2324,85 @@
 			</text>
 		</page>
 		
+		<!-- Pack everything selected in the file manager into one .7z. The batch
+		     engine runs of_batch_cmd_* once per selected item, and 7-Zip adds each
+		     one to the same archive, so a multi-select turns into a single file.
+		     The default name comes from the same generator the backup screen uses,
+		     which carries a timestamp, so consecutive runs never land in the same
+		     archive; typing the name of an existing one adds to it instead. -->
+		<page name="fm_ms_pack">
+			<template name="base_ex_key"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>{@fm_open_makezip}</text>
+			</text>
+
+			<text style="text_ab_subtitle_lim">
+				<placement x="%col1_x%" y="%row1_2_y%"/>
+				<text>{@in} %tw_file_location1%</text>
+			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x%" y="%row2_1a_y%"/>
+				<text>{@name}</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x%" y="%row2_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%of_pack_name%</text>
+				<data name="of_pack_name"/>
+				<restrict minlen="1" maxlen="64" allow="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_.() "/>
+				<actions>
+					<action function="overlay"/>
+					<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%/%of_pack_name%.7z'</action>
+					<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%/%of_pack_name%.7z'</action>
+					<action function="set">tw_fm_text1={@fm_open_makezip}</action>
+					<action function="set">tw_fm_text2=</action>
+					<action function="set">tw_fm_text3=</action>
+					<action function="set">tw_include_text3=0</action>
+					<action function="set">tw_back=fm_ms_actions</action>
+					<action function="page">filemanagerconfirm</action>
+				</actions>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x%" y="%row2_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
+
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row3_1a_y%"/>
+				<text>{@arc_lvl_title}</text>
+			</text>
+
+			<slidervalue>
+				<placement x="%slider_x%" y="%row3_2a_y%" w="%slidervalue_w%"/>
+				<data variable="tw_pack_lvl" min="1" max="9" showrange="0" showcurr="0" changeondrag="1"/>
+			</slidervalue>
+
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row4_1a_y%"/>
+				<text>{@arc_lvl} %tw_pack_lvl%</text>
+			</text>
+
+			<template name="gestures_key"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">fm_ms_actions</action>
+			</action>
+		</page>
+
 		<page name="filemanageraction">
 			<template name="base_console_cancel"/>
 
