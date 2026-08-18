@@ -2441,8 +2441,15 @@
 			</text>
 
 			<text style="caption_hl">
+				<condition var1="of_pack_pw_err" op="!=" var2="1"/>
 				<placement x="%col1_x%" y="%row2_1a_y%"/>
 				<text>Leave empty for no encryption</text>
+			</text>
+
+			<text style="caption_hl">
+				<condition var1="of_pack_pw_err" var2="1"/>
+				<placement x="%col1_x%" y="%row2_1a_y%"/>
+				<text>Passwords did not match - type it again</text>
 			</text>
 
 			<input>
@@ -2451,8 +2458,9 @@
 				<data name="tw_7z_pass" mask="*" maskvariable="tw_7z_pass_disp"/>
 				<actions>
 					<action function="overlay"/>
-					<action function="set">of_pack_pw=-p%tw_7z_pass% -mhe=on</action>
-					<action function="page">fm_ms_pack</action>
+					<action function="set">of_pack_pw2=</action>
+					<action function="set">of_pack_pw_err=0</action>
+					<action function="page">fm_ms_pass2</action>
 				</actions>
 			</input>
 
@@ -2464,6 +2472,87 @@
 
 			<action>
 				<touch key="back"/>
+				<action function="page">fm_ms_pack</action>
+			</action>
+		</page>
+
+		<page name="fm_ms_pass2">
+			<template name="base_ex_key"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>Password</text>
+			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x%" y="%row2_1a_y%"/>
+				<text>Type it once more</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x%" y="%row2_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%of_pack_pw2_disp%</text>
+				<data name="of_pack_pw2" mask="*" maskvariable="of_pack_pw2_disp"/>
+				<actions>
+					<action function="overlay"/>
+					<action function="page">fm_ms_pass_check</action>
+				</actions>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x%" y="%row2_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
+
+			<template name="gestures_key"/>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">fm_ms_pass</action>
+			</action>
+		</page>
+
+		<!-- Compare the two entries. A typo here would otherwise only surface
+		     later, as an archive nobody can open. -->
+		<page name="fm_ms_pass_check">
+			<action>
+				<condition var1="tw_7z_pass" op="!=" var2="%of_pack_pw2%"/>
+				<action function="set">of_pack_pw_err=1</action>
+				<action function="set">tw_7z_pass=</action>
+				<action function="set">tw_7z_pass_disp=</action>
+				<action function="set">of_pack_pw=</action>
+				<action function="page">fm_ms_pass</action>
+			</action>
+
+			<action>
+				<condition var1="tw_7z_pass" var2="%of_pack_pw2%"/>
+				<condition var1="tw_7z_pass" op="!=" var2=""/>
+				<action function="set">of_pack_pw_err=0</action>
+				<action function="set">of_pack_pw=-p"$(cat /tmp/of_packpw)" -mhe=on</action>
+				<action function="page">fm_ms_pass_save</action>
+			</action>
+
+			<action>
+				<condition var1="tw_7z_pass" var2="%of_pack_pw2%"/>
+				<condition var1="tw_7z_pass" var2=""/>
+				<action function="set">of_pack_pw=</action>
+				<action function="page">fm_ms_pack</action>
+			</action>
+		</page>
+
+		<!-- Park the password in tmpfs and read it back at pack time, so the
+		     command that reaches the log carries $(cat ...) rather than the
+		     password itself. /tmp is RAM, and the file dies with the session. -->
+		<page name="fm_ms_pass_save">
+			<action>
+				<action function="terminalcommand">printf '%%s' '%tw_7z_pass%' &gt; /tmp/of_packpw; chmod 600 /tmp/of_packpw</action>
+			</action>
+
+			<action>
 				<action function="page">fm_ms_pack</action>
 			</action>
 		</page>

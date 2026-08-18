@@ -153,3 +153,53 @@
  
        if (!r)
  	{
+--- a/gui/action.cpp
++++ b/gui/action.cpp
+@@ -1950,7 +1950,7 @@
+   else
+     {
+       command = "cd \"" + cmdpath + "\" && " + arg + " 2>&1";;
+-      LOGINFO("Actual command is: '%s'\n", command.c_str());
++      LOGINFO("Actual command is: '%s'\n", redact_secrets(command).c_str());
+       DataManager::SetValue("tw_terminal_state", 1);
+       DataManager::SetValue("tw_background_thread_running", 1);
+       FILE *fp;
+@@ -2851,6 +2851,29 @@
+ 	return 0;
+ }
+ 
++// Keep archive passwords out of the log. An encrypted archive is created with
++// the password on the command line, and recovery logs are copied to internal
++// storage, so logging the command verbatim would leave the password sitting
++// next to the archive it protects.
++static std::string redact_secrets(const std::string& command) {
++	if (command.find("/tmp/of_packpw") != std::string::npos &&
++	    command.find("printf") != std::string::npos)
++		return "<password written to /tmp/of_packpw>";
++
++	std::string out = command;
++	size_t at = out.find(" -p");
++	while (at != std::string::npos) {
++		size_t from = at + 3;
++		size_t to = out.find(' ', from);
++		if (to == std::string::npos)
++			to = out.size();
++		if (to > from)
++			out.replace(from, to - from, "***");
++		at = out.find(" -p", from + 3);
++	}
++	return out;
++}
++
+ int GUIAction::cmdf(std::string arg, std::string file)
+ {
+   char buff[1024];
+@@ -2863,7 +2886,7 @@
+   //begin terminal
+   DataManager::GetValue("tw_terminal_location", cmdpath);
+   command = "cd \"" + cmdpath + "\" && " + std::string(buff) + " 2>&1";
+-  LOGINFO("Actual command is: '%s'\n", command.c_str());
++  LOGINFO("Actual command is: '%s'\n", redact_secrets(command).c_str());
+   DataManager::SetValue("tw_terminal_state", 1);
+   DataManager::SetValue("tw_background_thread_running", 1);
+   FILE* fp;
