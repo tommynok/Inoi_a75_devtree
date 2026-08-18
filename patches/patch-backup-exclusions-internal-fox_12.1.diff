@@ -28,7 +28,7 @@
  void TWPartition::ExcludeAll(const string& path) {
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
-@@ -1150,9 +1150,12 @@
+@@ -1150,14 +1150,17 @@
  		return true;
  	}
  backup_error:
@@ -38,19 +38,28 @@
 +	// "No such file or directory" error on screen.
  	TWFunc::copy_file("/tmp/recovery.log", backup_log, 0644);
  	tw_set_default_metadata(backup_log.c_str());
-+	Clean_Backup_Folder(part_settings->Backup_Folder);
++	Clean_Backup_Folder(part_settings->Backup_Folder, stop_backup.get_value() != 0);
  	TWFunc::SetPerformanceMode(false);
  	return false;
  }
-@@ -1168,6 +1171,7 @@
+ 
+-void TWPartitionManager::Clean_Backup_Folder(string Backup_Folder) {
++void TWPartitionManager::Clean_Backup_Folder(string Backup_Folder, bool Remove_Log) {
+ 	DIR *d = opendir(Backup_Folder.c_str());
+ 	struct dirent *p;
+ 	int r;
+@@ -1168,6 +1171,10 @@
  	ext.push_back("md5");
  	ext.push_back("sha2");
  	ext.push_back("info");
-+	ext.push_back("log");
++	// The saved log is worth keeping when the backup failed on its own, and
++	// only gets in the way when the user cancelled deliberately.
++	if (Remove_Log)
++		ext.push_back("log");
  
  	gui_msg("backup_clean=Backup Failed. Cleaning Backup Folder.");
  
-@@ -1184,7 +1188,11 @@
+@@ -1184,7 +1191,11 @@
  
  		size_t dot = path.find_last_of(".") + 1;
  		for (vector<string>::const_iterator i = ext.begin(); i != ext.end(); ++i) {
@@ -63,7 +72,7 @@
  				r = unlink(path.c_str());
  				if (r != 0)
  					LOGINFO("Unable to unlink '%s: %s'\n", path.c_str(), strerror(errno));
-@@ -1192,6 +1200,11 @@
+@@ -1192,6 +1203,11 @@
  		}
  	}
  	closedir(d);
@@ -75,7 +84,7 @@
  }
  
  int TWPartitionManager::Check_Backup_Cancel() {
-@@ -1375,9 +1388,18 @@
+@@ -1375,9 +1391,18 @@
          	{ 
            	   if (strstr(part_settings.Backup_Folder.c_str(), "data/media/0"))
               		{
@@ -94,6 +103,17 @@
               		} 
               		   else gui_msg("fox_internal_q1=OrangeFox - Internal Storage - take care!");
          	}
+--- a/partitions.hpp
++++ b/partitions.hpp
+@@ -400,7 +400,7 @@
+ 	TWPartition *Get_Default_Storage_Partition();                             // Returns a pointer to a default storage partition
+ 	int Check_Backup_Cancel();                                                // Returns the value of stop_backup
+ 	int Cancel_Backup();                                                      // Signals partition backup to cancel
+-	void Clean_Backup_Folder(string Backup_Folder);                           // Clean Backup Folder on Error
++	void Clean_Backup_Folder(string Backup_Folder, bool Remove_Log = true);   // Clean Backup Folder on Error
+ 	int Fix_Contexts();
+ 	void Get_Partition_List(string ListType, std::vector<PartitionList> *Partition_List);
+ 	int Fstab_Processed();                                                    // Indicates if the fstab has been processed or not
 --- a/Android.mk
 +++ b/Android.mk
 @@ -458,6 +458,9 @@
