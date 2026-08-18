@@ -2338,6 +2338,14 @@
 				<action function="set">tw_7z_pass_disp=</action>
 			</action>
 
+			<!-- Drop last run's timestamp here, on its own. terminalcommand runs as
+			     a threaded operation, and any "set" queued behind it in the same
+			     block is refused with "Another threaded action is already running",
+			     which is what left of_batch_cmd_* unset and the packing hanging. -->
+			<action>
+				<action function="terminalcommand">rm -f /tmp/of_packstamp</action>
+			</action>
+
 			<text style="text_ab_title">
 				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
 				<text>{@fm_hdr}</text>
@@ -2392,13 +2400,13 @@
 
 			<slider style="slider_action">
 				<placement x="%center_x%" y="%slider_y%" placement="5"/>
-				<!-- Stamp the run here, not inside the packing command: cmdf() feeds
-				     that command to sprintf, where a date format's % signs would be
-				     read as conversions. Only $(cat) reaches sprintf, and it holds
-				     no % at all. -->
-				<action function="terminalcommand">date +%%Y%%m%%d-%%H%%M%%S &gt; /tmp/of_packstamp</action>
-				<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp 2&gt;/dev/null).7z"</action>
-				<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp 2&gt;/dev/null).7z"</action>
+				<!-- The first item creates the timestamp and the rest reuse it, so a
+				     whole selection lands in one archive. The date's % signs are
+				     written four-fold: the theme turns %%%% into %%, and cmdf() runs
+				     the result through sprintf, which turns %% into a literal %. -->
+				<action function="set">tw_terminal_location=%tw_file_location1%</action>
+				<action function="set">of_batch_cmd_d=[ -f /tmp/of_packstamp ] || date +%%%%Y%%%%m%%%%d-%%%%H%%%%M%%%%S &gt; /tmp/of_packstamp; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
+				<action function="set">of_batch_cmd_f=[ -f /tmp/of_packstamp ] || date +%%%%Y%%%%m%%%%d-%%%%H%%%%M%%%%S &gt; /tmp/of_packstamp; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
 				<action function="set">tw_fm_text1=7Z</action>
 				<action function="set">tw_fm_text2=</action>
 				<action function="set">tw_fm_text3=</action>
