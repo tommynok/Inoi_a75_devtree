@@ -2333,6 +2333,16 @@
 		<page name="fm_ms_pack">
 			<template name="base_ex_key"/>
 
+			<!-- No password unless one is typed: 7-Zip given an empty -p still
+			     encrypts, with an empty password, which no other tool would open
+			     without prompting. of_pack_pw stays empty until the password field
+			     is used, and is spliced into the command as a whole switch. -->
+			<action>
+				<action function="set">tw_7z_pass=</action>
+				<action function="set">tw_7z_pass_disp=</action>
+				<action function="set">of_pack_pw=</action>
+			</action>
+
 			<text style="text_ab_title">
 				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
 				<text>{@fm_hdr}</text>
@@ -2360,8 +2370,8 @@
 				<restrict minlen="1" maxlen="64" allow="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_.() "/>
 				<actions>
 					<action function="overlay"/>
-					<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%/%of_pack_name%.7z'</action>
-					<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%/%of_pack_name%.7z'</action>
+					<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_file_location1%/%of_pack_name%.7z'</action>
+					<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_file_location1%/%of_pack_name%.7z'</action>
 					<action function="set">tw_fm_text1={@fm_open_makezip}</action>
 					<action function="set">tw_fm_text2=</action>
 					<action function="set">tw_fm_text3=</action>
@@ -2389,6 +2399,25 @@
 				<placement x="%col1_x_indent%" y="%row4_1a_y%"/>
 				<text>{@arc_lvl} %tw_pack_lvl%</text>
 			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x%" y="%row5_1a_y%"/>
+				<text>Password (optional)</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x%" y="%row5_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%tw_7z_pass_disp%</text>
+				<data name="tw_7z_pass" mask="*" maskvariable="tw_7z_pass_disp"/>
+				<actions>
+					<action function="overlay"/>
+					<action function="set">of_pack_pw=-p%tw_7z_pass% -mhe=on</action>
+				</actions>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x%" y="%row5_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
 
 			<template name="gestures_key"/>
 
