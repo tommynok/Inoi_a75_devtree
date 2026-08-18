@@ -155,17 +155,8 @@
  	{
 --- a/gui/action.cpp
 +++ b/gui/action.cpp
-@@ -1950,7 +1950,7 @@
-   else
-     {
-       command = "cd \"" + cmdpath + "\" && " + arg + " 2>&1";;
--      LOGINFO("Actual command is: '%s'\n", command.c_str());
-+      LOGINFO("Actual command is: '%s'\n", redact_secrets(command).c_str());
-       DataManager::SetValue("tw_terminal_state", 1);
-       DataManager::SetValue("tw_background_thread_running", 1);
-       FILE *fp;
-@@ -2851,6 +2851,29 @@
- 	return 0;
+@@ -1927,6 +1927,29 @@
+   return 0;
  }
  
 +// Keep archive passwords out of the log. An encrypted archive is created with
@@ -191,9 +182,18 @@
 +	return out;
 +}
 +
- int GUIAction::cmdf(std::string arg, std::string file)
+ int GUIAction::terminalcommand(std::string arg)
  {
-   char buff[1024];
+   int op_status = 0;
+@@ -1950,7 +1973,7 @@
+   else
+     {
+       command = "cd \"" + cmdpath + "\" && " + arg + " 2>&1";;
+-      LOGINFO("Actual command is: '%s'\n", command.c_str());
++      LOGINFO("Actual command is: '%s'\n", redact_secrets(command).c_str());
+       DataManager::SetValue("tw_terminal_state", 1);
+       DataManager::SetValue("tw_background_thread_running", 1);
+       FILE *fp;
 @@ -2863,7 +2886,7 @@
    //begin terminal
    DataManager::GetValue("tw_terminal_location", cmdpath);
