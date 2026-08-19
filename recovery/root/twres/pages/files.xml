@@ -343,6 +343,7 @@
 					<action function="set">tw_7z_pass_disp=</action>
 					<action function="set">tw_7z_pass2_disp=</action>
 					<action function="set">of_pack_pw_err=0</action>
+					<action function="set">of_pw_return=fm_ms_pack</action>
 					<action function="page">fm_ms_pack</action>
 				</listitem>
 				<listitem name="{@fm_delete_btn}">
@@ -1010,6 +1011,12 @@
 					<action function="changeterminal">"%tw_filename1%"</action>
 				</listitem>
 				<listitem name="{@fm_open_makezip}">
+					<action function="set">of_pack_pw=</action>
+					<action function="set">tw_7z_pass=</action>
+					<action function="set">tw_7z_pass2=</action>
+					<action function="set">tw_7z_pass_disp=</action>
+					<action function="set">tw_7z_pass2_disp=</action>
+					<action function="set">of_pack_pw_err=0</action>
 					<condition var1="opts_show" var2="1"/>
 					<icon res="archive"/>
 					<action function="set">tw_artype=%tw_fm_isfolder%</action>
@@ -1933,6 +1940,32 @@
 				<fill color="%transparent%"/>
 				<action function="page">archive_pass</action>
 			</button>
+
+			<!-- Packing gets the same optional password as the multi-select screen,
+			     entered twice, so the two ways into an archive behave alike. -->
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row8_1_y%"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>{@set_password}: %tw_7z_pass_disp%</text>
+			</text>
+
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row8_2_y%"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>{@encryption_hdr}</text>
+			</text>
+
+			<button>
+				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_artype" var2="12"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="set">of_pw_return=archive_confirm</action>
+				<action function="page">fm_ms_pass</action>
+			</button>
 			<button>
 				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
 				<condition var1="tw_extract_action" var2="0"/>
@@ -2126,7 +2159,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_file_location1%.7z' .;</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_file_location1%.7z' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2135,7 +2168,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" var2="1"/>
-				<action function="terminalcommand">cd '%tw_filename1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_filename1%.7z' .;</action>
+				<action function="terminalcommand">cd '%tw_filename1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_filename1%.7z' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2143,7 +2176,7 @@
 				<condition var1="tw_artype" var2="12"/>
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on '%tw_filename1%.7z' '%tw_selection1%';</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_filename1%.7z' '%tw_selection1%';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2476,7 +2509,7 @@
 
 			<action>
 				<touch key="back"/>
-				<action function="page">fm_ms_pack</action>
+				<action function="page">%of_pw_return%</action>
 			</action>
 		</page>
 
@@ -2523,7 +2556,7 @@
 				<condition var1="tw_7z_pass" var2="tw_7z_pass2"/>
 				<action function="set">of_pack_pw_err=0</action>
 				<action function="set">of_pack_pw=-p%tw_7z_pass% -mhe=on</action>
-				<action function="page">fm_ms_pack</action>
+				<action function="page">%of_pw_return%</action>
 			</action>
 
 			<action>
