@@ -344,6 +344,7 @@
 					<action function="set">tw_7z_pass2_disp=</action>
 					<action function="set">of_pack_pw_err=0</action>
 					<action function="set">of_pw_return=fm_ms_pack</action>
+					<action function="set">of_pack_mode=0</action>
 					<action function="page">fm_ms_pack</action>
 				</listitem>
 				<listitem name="{@fm_delete_btn}">
@@ -2417,16 +2418,32 @@
 			</text>
 
 			<text style="caption">
+				<placement x="%gl_text_x%" y="%row5_1a_y%"/>
+				<text>{@arc_type}</text>
+			</text>
+
+			<listbox>
+				<placement x="0" y="%row5_2a_y%" w="%screen_w%" h="%lb_l3%"/>
+				<data name="of_pack_mode"/>
+				<listitem name="7Z - one archive">0</listitem>
+				<listitem name="7Z - one per item">1</listitem>
+				<listitem name="TAR+ZSTD - one per item">2</listitem>
+			</listbox>
+
+			<text style="caption">
+				<condition var1="of_pack_mode" op="!=" var2="2"/>
 				<placement x="%gl_text_x%" y="%row4_1a_y%"/>
 				<text>Password: %tw_7z_pass_disp%</text>
 			</text>
 
 			<text style="text_body1">
+				<condition var1="of_pack_mode" op="!=" var2="2"/>
 				<placement x="%col1_x_indent%" y="%row4_2a_y%"/>
 				<text>Tap to set (optional)</text>
 			</text>
 
 			<button>
+				<condition var1="of_pack_mode" op="!=" var2="2"/>
 				<placement x="0" y="%row4_1a_y%" w="%screen_w%" h="120"/>
 				<highlight color="%highlight_color%"/>
 				<fill color="%transparent%"/>
@@ -2440,14 +2457,12 @@
 
 			<slider style="slider_action">
 				<placement x="%center_x%" y="%slider_y%" placement="5"/>
-				<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
-				<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
 				<action function="set">tw_fm_text1=7Z</action>
 				<action function="set">tw_fm_text2=</action>
 				<action function="set">tw_fm_text3=</action>
 				<action function="set">tw_include_text3=0</action>
 				<action function="set">tw_back=fm_ms_actions</action>
-				<action function="page">filemanageraction</action>
+				<action function="page">fm_ms_pack_go</action>
 			</slider>
 
 			<template name="gestures"/>
@@ -2469,6 +2484,33 @@
 		     variable rather than expanding it, which is how Fox compares two
 		     variables. The password reaches 7-Zip on the command line, and the
 		     patched command logging redacts anything after -p. -->
+		<!-- One command per mode. The batch engine appends the item's path to
+		     whatever is set here, so the per-item modes wrap the command in sh -c
+		     and read that path back as $0: cmdf() substitutes the path exactly
+		     once, and a second %s in the format would read past the argument. -->
+		<page name="fm_ms_pack_go">
+			<action>
+				<condition var1="of_pack_mode" var2="0"/>
+				<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
+				<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
+				<action function="page">filemanageraction</action>
+			</action>
+
+			<action>
+				<condition var1="of_pack_mode" var2="1"/>
+				<action function="set">of_batch_cmd_d=sh -c '/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "$0_$(cat /tmp/of_packstamp).7z" "$0"'</action>
+				<action function="set">of_batch_cmd_f=sh -c '/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "$0_$(cat /tmp/of_packstamp).7z" "$0"'</action>
+				<action function="page">filemanageraction</action>
+			</action>
+
+			<action>
+				<condition var1="of_pack_mode" var2="2"/>
+				<action function="set">of_batch_cmd_d=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
+				<action function="set">of_batch_cmd_f=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
+				<action function="page">filemanageraction</action>
+			</action>
+		</page>
+
 		<page name="fm_ms_pass">
 			<template name="base_ex_key"/>
 
