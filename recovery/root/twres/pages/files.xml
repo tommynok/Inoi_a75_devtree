@@ -2507,8 +2507,8 @@
 			<action>
 				<condition var1="of_pack_mode" var2="2"/>
 				<action function="set">tw_fm_text1=TAR+ZSTD</action>
-				<action function="set">of_batch_cmd_d=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
-				<action function="set">of_batch_cmd_f=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
+				<action function="set">of_batch_cmd_d=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -v -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
+				<action function="set">of_batch_cmd_f=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -v -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
 				<action function="page">filemanageraction</action>
 			</action>
 		</page>
