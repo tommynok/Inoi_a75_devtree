@@ -2029,7 +2029,7 @@
 			</action>
 
 			<action>
-				<condition var1="tw_pack_lvl" var2=""/>
+				<condition var1="tw_pack_lvl" op="!=" var2=""/>
 				<action function="set">tw_pack_lvl=5</action>
 			</action>
 
@@ -2387,9 +2387,19 @@
 			     value once its slider is touched, not on render. Skipping it here,
 			     e.g. accepting the TAR+ZSTD default without touching the level,
 			     left it empty, and the packing command came out as "zstd -  -T0 -c":
-			     level 3, zstd's own fallback for no -N, not whatever the slider showed. -->
+			     level 3, zstd's own fallback for no -N, not whatever the slider showed.
+
+			     The operator is load-bearing. An empty var2 does not mean "equals
+			     empty": object.cpp returns true when var1 is NON-empty, so plain
+			     var2="" fires whenever the level IS set. Combined with an action
+			     that writes the very variable its condition watches, and with
+			     action.cpp re-running actions on every change to a condition
+			     variable, that recursed until the stack blew and the device
+			     rebooted the instant the slider was touched. With op="!=" the
+			     condition holds only while the value is genuinely unset, so the
+			     single write that follows makes it false and it stops. -->
 			<action>
-				<condition var1="tw_pack_lvl" var2=""/>
+				<condition var1="tw_pack_lvl" op="!=" var2=""/>
 				<action function="set">tw_pack_lvl=5</action>
 			</action>
 
