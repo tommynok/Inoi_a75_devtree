@@ -2028,6 +2028,11 @@
 				<action function="set">tw_pack_lvl=1</action>
 			</action>
 
+			<action>
+				<condition var1="tw_pack_lvl" var2=""/>
+				<action function="set">tw_pack_lvl=5</action>
+			</action>
+
 			<template name="gestures"/>
 			
 			<action>
@@ -2376,6 +2381,16 @@
 			     made the shell fail before reaching the command itself. -->
 			<action>
 				<action function="set">tw_terminal_location=%tw_file_location1%</action>
+			</action>
+
+			<!-- tw_pack_lvl is shared with the other pack screens and only gets a
+			     value once its slider is touched, not on render. Skipping it here,
+			     e.g. accepting the TAR+ZSTD default without touching the level,
+			     left it empty, and the packing command came out as "zstd -  -T0 -c":
+			     level 3, zstd's own fallback for no -N, not whatever the slider showed. -->
+			<action>
+				<condition var1="tw_pack_lvl" var2=""/>
+				<action function="set">tw_pack_lvl=5</action>
 			</action>
 
 			<!-- Stamp the run, alone in its own block: terminalcommand runs as a
