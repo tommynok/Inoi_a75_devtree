@@ -344,7 +344,7 @@
 					<action function="set">tw_7z_pass2_disp=</action>
 					<action function="set">of_pack_pw_err=0</action>
 					<action function="set">of_pw_return=fm_ms_pack</action>
-					<action function="set">of_pack_mode=0</action>
+					<action function="set">of_pack_mode=2</action>
 					<action function="page">fm_ms_pack</action>
 				</listitem>
 				<listitem name="{@fm_delete_btn}">
@@ -2425,9 +2425,9 @@
 			<listbox>
 				<placement x="0" y="%row5_2a_y%" w="%screen_w%" h="%lb_l3%"/>
 				<data name="of_pack_mode"/>
+				<listitem name="TAR+ZSTD - one per item">2</listitem>
 				<listitem name="7Z - one archive">0</listitem>
 				<listitem name="7Z - one per item">1</listitem>
-				<listitem name="TAR+ZSTD - one per item">2</listitem>
 			</listbox>
 
 			<text style="caption">
@@ -2507,8 +2507,8 @@
 			<action>
 				<condition var1="of_pack_mode" var2="2"/>
 				<action function="set">tw_fm_text1=TAR+ZSTD</action>
-				<action function="set">of_batch_cmd_d=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -v -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
-				<action function="set">of_batch_cmd_f=sh -c 'tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -v -c &gt; "$0_$(cat /tmp/of_packstamp).tar.zst"'</action>
+				<action function="set">of_batch_cmd_d=sh -c 'F="$0_$(cat /tmp/of_packstamp).tar.zst"; tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$F"; ls -la "$F"'</action>
+				<action function="set">of_batch_cmd_f=sh -c 'F="$0_$(cat /tmp/of_packstamp).tar.zst"; tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$F"; ls -la "$F"'</action>
 				<action function="page">filemanageraction</action>
 			</action>
 		</page>
