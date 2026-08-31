@@ -153,6 +153,46 @@
  
        if (!r)
  	{
+@@ -1607,7 +1614,38 @@
+ 		//remove periods from build display so it doesn't confuse the extension code
+ 		propvalue.erase(remove(propvalue.begin(), propvalue.end(), '.'), propvalue.end());
+ 	}
+-	string Backup_Name = Get_Current_Date();
++
++	// Shorten the auto-generated name. ro.build.display.id on this device is a
++	// long fixed string (e.g. INOI_A750_NEEA_U_V6_20250828_user) that repeats
++	// identically on every backup; trim the parts that carry no information
++	// run to run, and spell the model the way it is marketed. Scoped to this
++	// function only -- the property itself and Get_Current_Date() (used
++	// elsewhere for logs/screenshots) are untouched.
++	{
++		static const char* suffixes[] = {"_userdebug", "_eng", "_user"};
++		for (size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
++			size_t len = strlen(suffixes[i]);
++			if (propvalue.size() > len &&
++			    propvalue.compare(propvalue.size() - len, len, suffixes[i]) == 0) {
++				propvalue.resize(propvalue.size() - len);
++				break;
++			}
++		}
++		size_t pos = propvalue.find("A750");
++		if (pos != string::npos)
++			propvalue.replace(pos, 4, "A75");
++	}
++
++	// Own timestamp without seconds, and a single separator instead of
++	// Get_Current_Date()'s double dash between date and time -- two backups a
++	// minute apart is not a real scenario here, and this reads shorter for no
++	// loss of information a user would actually check by.
++	char timestamp[32];
++	time_t seconds = time(0);
++	struct tm *t = localtime(&seconds);
++	sprintf(timestamp, "%04d-%02d-%02d_%02d-%02d", t->tm_year + 1900,
++		t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
++	string Backup_Name = timestamp;
+ 	Backup_Name += "_" + propvalue;
+ 	if (Backup_Name.size() > MAX_BACKUP_NAME_LEN)
+ 		Backup_Name.resize(MAX_BACKUP_NAME_LEN);
 --- a/gui/action.cpp
 +++ b/gui/action.cpp
 @@ -1927,6 +1927,29 @@
