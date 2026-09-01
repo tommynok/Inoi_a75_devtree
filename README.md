@@ -31,6 +31,6 @@ Works:
 - [X] Sideload
 - [X] USB OTG
 - [X] Vibrator
-- [ ] DT2W
+- [Х] DT2W
 
 
