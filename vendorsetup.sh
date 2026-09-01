@@ -127,13 +127,5 @@ export FOX_COMPRESS_EXECUTABLES=0
 # error on it, it is obsolete in favour of FOX_MAINTAINER_PATCH_VERSION.
 export FOX_BUILD_TYPE=NoGuard
 
-# More rows before a scrollbar appears on "options" listboxes (data.cpp).
-# Below 7 this is a no-op for the image-flash partition picker specifically:
-# it only grows past its own 540px default once cv*90 exceeds that, i.e. at
-# 7+. 9 is the real ceiling on this device (FOX_AB_DEVICE clamps to 9, not
-# the 8 the upstream doc comment claims) -- not a magic number, it's the
-# code's own clamp.
-export OF_OPTIONS_LIST_NUM=9
-
 ln -sf gnused device/inoi/INOI_A75/recovery/root/sbin/sed
 ln -sf gnutar device/inoi/INOI_A75/recovery/root/sbin/tar
