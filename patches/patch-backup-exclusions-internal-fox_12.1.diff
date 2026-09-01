@@ -249,3 +249,17 @@
    DataManager::SetValue("tw_terminal_state", 1);
    DataManager::SetValue("tw_background_thread_running", 1);
    FILE* fp;
+--- a/data.cpp
++++ b/data.cpp
+@@ -846,6 +846,11 @@
+ 		lnum2 = lnum;
+ 
+   lnum_group = (cv * 144 + (144 * 2));
++  LOGINFO("OF_OPTIONS_LIST_NUM: macro defined, raw='%s' cv=%d lnum=%d lnum2=%d lnum_group=%d\n",
++	  OF_OPTIONS_LIST_NUM, cv, lnum, lnum2, lnum_group);
++  #else
++  LOGINFO("OF_OPTIONS_LIST_NUM: macro NOT defined at compile time, using hardcoded defaults lnum=%d lnum2=%d lnum_group=%d\n",
++	  lnum, lnum2, lnum_group);
+   #endif
+   mConst.SetValue("options_list_num", lnum);
+   mConst.SetValue("options_list_num_2", lnum2);
