@@ -153,7 +153,7 @@
  
        if (!r)
  	{
-@@ -1607,7 +1614,38 @@
+@@ -1607,7 +1614,44 @@
  		//remove periods from build display so it doesn't confuse the extension code
  		propvalue.erase(remove(propvalue.begin(), propvalue.end(), '.'), propvalue.end());
  	}
@@ -178,6 +178,12 @@
 +		size_t pos = propvalue.find("A750");
 +		if (pos != string::npos)
 +			propvalue.replace(pos, 4, "A75");
++
++		// The brand prefix is redundant: this recovery only ever runs on one
++		// device, so its own backups never need to be told apart from another
++		// brand's.
++		if (propvalue.compare(0, 5, "INOI_") == 0)
++			propvalue.erase(0, 5);
 +	}
 +
 +	// Own timestamp without seconds, and a single separator instead of
