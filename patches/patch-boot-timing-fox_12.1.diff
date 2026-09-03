@@ -30,7 +30,7 @@
  
  	// Check for and load custom theme if present
  	TWFunc::check_selinux_support();
-@@ -266,6 +281,7 @@
+@@ -266,11 +281,13 @@
  	// Fixup the RTC clock on devices which require it
  	if (crash_counter == 0)
  		TWFunc::Fixup_Time_On_Boot();
@@ -38,7 +38,49 @@
  
  	TWFunc::Update_Log_File();
  #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
-@@ -436,6 +452,7 @@
+ 	DataManager::ReadSettingsFile();
+ #endif
++	Fox_Log_Boot_Timing("settings_read");
+ 
+ 	// Run any outstanding OpenRecoveryScript
+ 	std::string cacheDir = TWFunc::get_log_dir();
+@@ -281,9 +298,11 @@
+ 		OpenRecoveryScript::Run_OpenRecoveryScript();
+ 	}
+ 
++  	Fox_Log_Boot_Timing("before_fox_startup");
+   	// call OrangeFox startup code
+   	TWFunc::OrangeFox_Startup();
+-  	
++  	Fox_Log_Boot_Timing("after_fox_startup");
++
+ #ifdef OF_ADVANCED_SECURITY
+ 	LOGINFO("ADB & MTP disabled by maintainer\n");
+ 	DataManager::SetValue("fox_advanced_security", "1");
+@@ -313,6 +332,8 @@
+ #endif
+ #endif
+ 
++	Fox_Log_Boot_Timing("mtp_done");
++
+ #ifndef TW_OEM_BUILD
+ 	// Check if system has never been changed
+ 	TWPartition* sys = PartitionManager.Find_Partition_By_Path(PartitionManager.Get_Android_Root_Path());
+@@ -357,10 +378,13 @@
+ 
+ 	TWFunc::Update_Log_File();
+ 
++	Fox_Log_Boot_Timing("system_ro_checks_done");
++
+ 	adb_bu_fifo->threadAdbBuFifo();
+ 
+ 	// run the postrecoveryboot script here
+ 	TWFunc::RunFoxScript("/system/bin/postrecoveryboot.sh", "");
++	Fox_Log_Boot_Timing("postrecoveryboot_done");
+ #ifndef OF_DEVICE_WITHOUT_PERSIST
+ 	DataManager::RestorePasswordBackup();
+ #endif
+@@ -436,6 +460,7 @@
  	setbuf(stderr, NULL);
  
  	signal(SIGPIPE, SIG_IGN);
@@ -46,7 +88,7 @@
  
  	// Handle ADB sideload
  	if (argc == 3 && strcmp(argv[1], "--adbd") == 0) {
-@@ -540,6 +557,7 @@
+@@ -540,6 +565,7 @@
  		LOGERR("Failing out of recovery due to problem with fstab.\n");
  		return -1;
  	}
@@ -54,13 +96,14 @@
  
  	// Set the props for OrangeFox dynamic partitions
  	//PartitionManager.Fox_Set_Dynamic_Partition_Props();
-@@ -547,11 +565,13 @@
+@@ -547,11 +573,14 @@
  	// start the UI
  	printf("Starting the UI...\n");
  	gui_init();
 +	Fox_Log_Boot_Timing("gui_init_done");
  
  	if (!startup.Get_Fastboot_Mode()) PartitionManager.Setup_Fstab_Partitions(true);
++	Fox_Log_Boot_Timing("fstab_partitions_setup");
  
  	// Load up all the resources
  	gui_loadResources();
@@ -68,7 +111,7 @@
  
  	std::string value;
  	static char charging = ' ';
-@@ -630,6 +650,7 @@
+@@ -630,6 +659,7 @@
  	} else {
  		process_recovery_mode(adb_bu_fifo, startup.Should_Skip_Decryption());
  	}
@@ -76,7 +119,7 @@
  #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
  	// Language
  	PageManager::LoadLanguage(DataManager::GetStrValue("tw_language"));
-@@ -643,8 +664,12 @@
+@@ -643,8 +673,12 @@
  		//[f/d] Start UI using reapply_settings page (executed on recovery startup)
  		DataManager::SetValue("of_reload_back", "main");
  		PageManager::RequestReload();
