@@ -1,0 +1,92 @@
+--- a/twrp.cpp
++++ b/twrp.cpp
+@@ -79,6 +79,19 @@
+ int Log_Offset;
+ bool datamedia;
+ 
++// Pure logging, no functional effect: prints /proc/uptime at named boot
++// checkpoints so a phase timeline can be read straight out of recovery.log.
++static void Fox_Log_Boot_Timing(const char* phase) {
++	FILE* f = fopen("/proc/uptime", "r");
++	double uptime = 0.0;
++	if (f) {
++		if (fscanf(f, "%lf", &uptime) != 1)
++			uptime = 0.0;
++		fclose(f);
++	}
++	LOGINFO("BOOT_TIMING: %-28s t=%.2fs\n", phase, uptime);
++}
++
+ static void Print_Prop(const char *key, const char *name, void *cookie) {
+ 	printf("%s=%s\n", key, name);
+ }
+@@ -251,7 +264,9 @@
+ #ifdef TW_INCLUDE_CRYPTO
+ 	android::keystore::copySqliteDb();
+ #endif
++	Fox_Log_Boot_Timing("before_decrypt_page");
+ 	Decrypt_Page(skip_decryption, datamedia);
++	Fox_Log_Boot_Timing("after_decrypt_page");
+ 
+ 	// Check for and load custom theme if present
+ 	TWFunc::check_selinux_support();
+@@ -266,6 +281,7 @@
+ 	// Fixup the RTC clock on devices which require it
+ 	if (crash_counter == 0)
+ 		TWFunc::Fixup_Time_On_Boot();
++	Fox_Log_Boot_Timing("after_fixup_time");
+ 
+ 	TWFunc::Update_Log_File();
+ #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
+@@ -436,6 +452,7 @@
+ 	setbuf(stderr, NULL);
+ 
+ 	signal(SIGPIPE, SIG_IGN);
++	Fox_Log_Boot_Timing("main_entry");
+ 
+ 	// Handle ADB sideload
+ 	if (argc == 3 && strcmp(argv[1], "--adbd") == 0) {
+@@ -540,6 +557,7 @@
+ 		LOGERR("Failing out of recovery due to problem with fstab.\n");
+ 		return -1;
+ 	}
++	Fox_Log_Boot_Timing("fstab_processed");
+ 
+ 	// Set the props for OrangeFox dynamic partitions
+ 	//PartitionManager.Fox_Set_Dynamic_Partition_Props();
+@@ -547,11 +565,13 @@
+ 	// start the UI
+ 	printf("Starting the UI...\n");
+ 	gui_init();
++	Fox_Log_Boot_Timing("gui_init_done");
+ 
+ 	if (!startup.Get_Fastboot_Mode()) PartitionManager.Setup_Fstab_Partitions(true);
+ 
+ 	// Load up all the resources
+ 	gui_loadResources();
++	Fox_Log_Boot_Timing("gui_resources_loaded");
+ 
+ 	std::string value;
+ 	static char charging = ' ';
+@@ -630,6 +650,7 @@
+ 	} else {
+ 		process_recovery_mode(adb_bu_fifo, startup.Should_Skip_Decryption());
+ 	}
++	Fox_Log_Boot_Timing("process_recovery_mode_done");
+ #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
+ 	// Language
+ 	PageManager::LoadLanguage(DataManager::GetStrValue("tw_language"));
+@@ -643,8 +664,12 @@
+ 		//[f/d] Start UI using reapply_settings page (executed on recovery startup)
+ 		DataManager::SetValue("of_reload_back", "main");
+ 		PageManager::RequestReload();
++		Fox_Log_Boot_Timing("before_reapply_settings_page");
+ 		gui_startPage("reapply_settings", 1, 0);
+-	} else gui_start();
++	} else {
++		Fox_Log_Boot_Timing("before_gui_start");
++		gui_start();
++	}
+ 
+ 	delete adb_bu_fifo;
+ 	TWFunc::Update_Intent_File(startup.Get_Intent());

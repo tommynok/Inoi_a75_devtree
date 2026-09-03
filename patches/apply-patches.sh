@@ -81,6 +81,25 @@ else
     echo "WARNING: backup exclusions patch failed dry-run (partition.cpp/partitionmanager.cpp/Android.mk upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0e. Boot-phase timing instrumentation (twrp.cpp) ---
+# Pure logging, zero functional change: adds Fox_Log_Boot_Timing(), which
+# prints /proc/uptime with a phase tag, at the checkpoints main() and
+# process_recovery_mode() already pass through (fstab, gui_init,
+# gui_loadResources, Decrypt_Page, Fixup_Time_On_Boot, and the
+# reapply_settings-vs-gui_start branch). Existing code paths and return
+# values are untouched. Read the result with:
+#   grep BOOT_TIMING /tmp/recovery.log
+BOOT_TIMING_PATCH="$PATCH_DIR/patch-boot-timing-fox_12.1.diff"
+echo "=== Applying boot-timing instrumentation ==="
+if [ ! -f "$BOOT_TIMING_PATCH" ]; then
+    echo "WARNING: $BOOT_TIMING_PATCH not found, skipping boot-timing instrumentation"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$BOOT_TIMING_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$BOOT_TIMING_PATCH"
+    echo "Boot-timing instrumentation applied successfully"
+else
+    echo "WARNING: boot-timing patch failed dry-run (twrp.cpp upstream context may have changed) - skipping, build continues"
+fi
+
 echo "=== Theme slimming: start ==="
 echo "GUI dir size before:"
 du -sh "$GUI"
