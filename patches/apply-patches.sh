@@ -81,6 +81,28 @@ else
     echo "WARNING: backup exclusions patch failed dry-run (partition.cpp/partitionmanager.cpp/Android.mk upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0f. Skip the fs_mgr fsck of /data on every recovery entry ---
+# The ROM's own fstab (/vendor/etc/fstab.mt6789 here) is copied to
+# /etc/additional.fstab and handed to vold for the metadata-encrypted mount.
+# It carries the fs_mgr "check" flag on /data, so fs_mgr runs fsck.f2fs first.
+# Android never leaves /data with a clean-unmount marker when rebooting into
+# recovery, so this fires on every entry from a booted system: measured at
+# 34.8 s (ro.boottime.init.fsck.data=34839), reporting the filesystem clean on
+# every count. From recovery to recovery, where the unmount is clean, the same
+# check costs 48 ms. The patch strips the flag from our private copy only;
+# the ROM's fstab is untouched.
+# Disable by renaming this .diff to .diff.bak - the gate below then skips it.
+DATA_FSCK_PATCH="$PATCH_DIR/patch-skip-data-fsck-fox_12.1.diff"
+echo "=== Applying /data fsck skip ==="
+if [ ! -f "$DATA_FSCK_PATCH" ]; then
+    echo "WARNING: $DATA_FSCK_PATCH not found, skipping /data fsck patch"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$DATA_FSCK_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$DATA_FSCK_PATCH"
+    echo "/data fsck skip applied successfully"
+else
+    echo "WARNING: /data fsck patch failed dry-run (partitionmanager.cpp upstream context may have changed) - skipping, build continues"
+fi
+
 # --- 0e. Boot-phase timing instrumentation (twrp.cpp) ---
 # Pure logging, zero functional change: adds Fox_Log_Boot_Timing(), which
 # prints /proc/uptime with a phase tag, at the checkpoints main() and
