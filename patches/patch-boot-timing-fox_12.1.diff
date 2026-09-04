@@ -30,13 +30,14 @@
  
  	// Check for and load custom theme if present
  	TWFunc::check_selinux_support();
-@@ -266,11 +281,13 @@
+@@ -266,11 +281,14 @@
  	// Fixup the RTC clock on devices which require it
  	if (crash_counter == 0)
  		TWFunc::Fixup_Time_On_Boot();
 +	Fox_Log_Boot_Timing("after_fixup_time");
  
  	TWFunc::Update_Log_File();
++	Fox_Log_Boot_Timing("log_file_updated");
  #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
  	DataManager::ReadSettingsFile();
  #endif
@@ -44,7 +45,7 @@
  
  	// Run any outstanding OpenRecoveryScript
  	std::string cacheDir = TWFunc::get_log_dir();
-@@ -281,9 +298,11 @@
+@@ -281,9 +299,11 @@
  		OpenRecoveryScript::Run_OpenRecoveryScript();
  	}
  
@@ -57,7 +58,7 @@
  #ifdef OF_ADVANCED_SECURITY
  	LOGINFO("ADB & MTP disabled by maintainer\n");
  	DataManager::SetValue("fox_advanced_security", "1");
-@@ -313,6 +332,8 @@
+@@ -313,6 +333,8 @@
  #endif
  #endif
  
@@ -66,7 +67,20 @@
  #ifndef TW_OEM_BUILD
  	// Check if system has never been changed
  	TWPartition* sys = PartitionManager.Find_Partition_By_Path(PartitionManager.Get_Android_Root_Path());
-@@ -357,10 +378,13 @@
+@@ -327,9 +349,12 @@
+ 				if (!created)
+ 					LOGERR("Unable to create log directory for TWRP\n");
+ 			}
++			Fox_Log_Boot_Timing("logs_dir_checked");
+ #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
+ 			DataManager::ReadSettingsFile();
++			Fox_Log_Boot_Timing("settings_read_2");
+ 			PartitionManager.Mount_Super_Toggle(DataManager::GetStrValue("tw_mount_system_ro"));
++			Fox_Log_Boot_Timing("super_toggle_done");
+ #endif
+ #endif
+ 		} else {
+@@ -357,10 +382,13 @@
  
  	TWFunc::Update_Log_File();
  
@@ -80,7 +94,7 @@
  #ifndef OF_DEVICE_WITHOUT_PERSIST
  	DataManager::RestorePasswordBackup();
  #endif
-@@ -436,6 +460,7 @@
+@@ -436,6 +464,7 @@
  	setbuf(stderr, NULL);
  
  	signal(SIGPIPE, SIG_IGN);
@@ -88,7 +102,7 @@
  
  	// Handle ADB sideload
  	if (argc == 3 && strcmp(argv[1], "--adbd") == 0) {
-@@ -540,6 +565,7 @@
+@@ -540,6 +569,7 @@
  		LOGERR("Failing out of recovery due to problem with fstab.\n");
  		return -1;
  	}
@@ -96,7 +110,7 @@
  
  	// Set the props for OrangeFox dynamic partitions
  	//PartitionManager.Fox_Set_Dynamic_Partition_Props();
-@@ -547,11 +573,14 @@
+@@ -547,11 +577,14 @@
  	// start the UI
  	printf("Starting the UI...\n");
  	gui_init();
@@ -111,7 +125,7 @@
  
  	std::string value;
  	static char charging = ' ';
-@@ -630,6 +659,7 @@
+@@ -630,6 +663,7 @@
  	} else {
  		process_recovery_mode(adb_bu_fifo, startup.Should_Skip_Decryption());
  	}
@@ -119,7 +133,7 @@
  #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
  	// Language
  	PageManager::LoadLanguage(DataManager::GetStrValue("tw_language"));
-@@ -643,8 +673,12 @@
+@@ -643,8 +677,12 @@
  		//[f/d] Start UI using reapply_settings page (executed on recovery startup)
  		DataManager::SetValue("of_reload_back", "main");
  		PageManager::RequestReload();
