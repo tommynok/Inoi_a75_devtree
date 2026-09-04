@@ -147,3 +147,54 @@
  
  	delete adb_bu_fifo;
  	TWFunc::Update_Intent_File(startup.Get_Intent());
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -142,6 +142,19 @@
+ // Only our private copy is rewritten; the ROM's fstab is untouched, so normal
+ // Android boots still check /data exactly as before, and "Repair or Change File
+ // System" in the GUI still runs fsck on demand.
++// Same pure-logging helper as the one in twrp.cpp, repeated here so the phases
++// inside Setup_Fstab_Partitions() land in the same BOOT_TIMING timeline.
++static void Fox_Log_Boot_Timing(const char* phase) {
++	FILE* f = fopen("/proc/uptime", "r");
++	double uptime = 0.0;
++	if (f) {
++		if (fscanf(f, "%lf", &uptime) != 1)
++			uptime = 0.0;
++		fclose(f);
++	}
++	LOGINFO("BOOT_TIMING: %-28s t=%.2fs\n", phase, uptime);
++}
++
+ static void Fox_Strip_Fsck_Flag(const std::string& fstab_path) {
+ 	std::string contents;
+ 	if (!android::base::ReadFileToString(fstab_path, &contents))
+@@ -583,6 +596,8 @@
+ 				(*iter)->Has_Android_Secure = false;
+ 		}
+ 
++		Fox_Log_Boot_Timing("  post_processing_done");
++
+ 		Unlock_Block_Partitions();
+ 
+ 		//Setup Apex before decryption
+@@ -653,15 +668,19 @@
+ 		if (settings_partition) {
+ 			Setup_Settings_Storage_Partition(settings_partition);
+ 		}
++		Fox_Log_Boot_Timing("  storage_setup_done");
+ 
+ 	#ifdef TW_INCLUDE_CRYPTO
+ 		DataManager::SetValue(TW_IS_ENCRYPTED, 1);
+ 		Decrypt_Data();
+ 	#endif
++		Fox_Log_Boot_Timing("  decrypt_data_done");
+ 
+ 		Update_System_Details();
++		Fox_Log_Boot_Timing("  update_details_done");
+ 		if (Get_Super_Status())
+ 			Setup_Super_Partition();
++		Fox_Log_Boot_Timing("  super_partition_done");
+ 		UnMount_Main_Partitions();
+ 	#ifdef AB_OTA_UPDATER
+ 		DataManager::SetValue("tw_active_slot", Get_Active_Slot_Display());
