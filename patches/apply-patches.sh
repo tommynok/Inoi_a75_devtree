@@ -81,6 +81,26 @@ else
     echo "WARNING: backup exclusions patch failed dry-run (partition.cpp/partitionmanager.cpp/Android.mk upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0e. Cap the persistent recovery log ---
+# TWFunc::Copy_Log() appends each boot's log to the full contents of the
+# previous one and recompresses the lot, with no upper bound. On this device
+# /data/recovery/log.gz had reached 66 MB compressed (~1 GB of text), and
+# Update_Log_File() - which calls it, twice per boot - spent 11.5 s per call.
+# Deleting the file dropped startup from 65.4 s to 42.3 s; this patch keeps it
+# from growing back, starting a fresh log past a 1 MB cap. last_log.gz still
+# holds the previous contents.
+# Disable by renaming this .diff to .diff.bak.
+LOG_CAP_PATCH="$PATCH_DIR/patch-cap-persistent-log-fox_12.1.diff"
+echo "=== Applying persistent log cap ==="
+if [ ! -f "$LOG_CAP_PATCH" ]; then
+    echo "WARNING: $LOG_CAP_PATCH not found, skipping log cap"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$LOG_CAP_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$LOG_CAP_PATCH"
+    echo "Persistent log cap applied successfully"
+else
+    echo "WARNING: log cap patch failed dry-run (twrp-functions.cpp upstream context may have changed) - skipping, build continues"
+fi
+
 # --- 0f. Skip the fs_mgr fsck of /data on every recovery entry ---
 # The ROM's own fstab (/vendor/etc/fstab.mt6789 here) is copied to
 # /etc/additional.fstab and handed to vold for the metadata-encrypted mount.
@@ -103,7 +123,7 @@ else
     echo "WARNING: /data fsck patch failed dry-run (partitionmanager.cpp upstream context may have changed) - skipping, build continues"
 fi
 
-# --- 0e. Boot-phase timing instrumentation (twrp.cpp) ---
+# --- 0g. Boot-phase timing instrumentation (twrp.cpp) ---
 # Pure logging, zero functional change: adds Fox_Log_Boot_Timing(), which
 # prints /proc/uptime with a phase tag, at the checkpoints main() and
 # process_recovery_mode() already pass through (fstab, gui_init,

@@ -1,0 +1,41 @@
+--- a/twrp-functions.cpp
++++ b/twrp-functions.cpp
+@@ -957,6 +957,11 @@
+   DataManager::SetValue("tw_partition", Partition_Name);
+ }
+ 
++// Largest persistent log we are willing to read back and recompress, in bytes.
++// 1 MB of gzip holds on the order of a hundred boots of history here, and keeps
++// the read-append-recompress cycle well under a second.
++#define OF_MAX_PERSISTENT_LOG_SIZE (1024 * 1024)
++
+ void TWFunc::Copy_Log(string Source, string Destination) {
+ 	int logPipe[2];
+ 	int pigz_pid;
+@@ -969,7 +974,25 @@
+ 	std::string uncompressedLog(Destination);
+ 	uncompressedLog.replace(extPos, Destination.length(), "");
+ 
+-	if (Path_Exists(Destination)) {
++	// Cap the persistent log. Everything below appends this boot's log to the
++	// full contents of the previous one and recompresses the lot, so the file
++	// only ever grows and every call costs more than the last. Measured on
++	// INOI_A75: log.gz had reached 66 MB compressed (~1 GB of text), and each
++	// call spent 11.5 s decompressing, appending and recompressing it - twice
++	// per boot, 23 s of a 65 s startup. Past the cap, start a fresh log rather
++	// than growing this one; the previous contents survive in last_log.gz,
++	// which Update_Log_File() rotates just before calling us.
++	bool of_log_too_big = false;
++	{
++		struct stat log_st;
++		if (stat(Destination.c_str(), &log_st) == 0 && log_st.st_size > OF_MAX_PERSISTENT_LOG_SIZE) {
++			LOGINFO("Persistent log %s is %lld bytes, over the %d byte cap - starting a fresh one\n",
++				Destination.c_str(), (long long)log_st.st_size, OF_MAX_PERSISTENT_LOG_SIZE);
++			of_log_too_big = true;
++		}
++	}
++
++	if (Path_Exists(Destination) && !of_log_too_big) {
+ 		Archive_Type type = Get_File_Type(Destination);
+ 		if (type == COMPRESSED) {
+ 			std::string destFileBuffer;
