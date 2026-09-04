@@ -198,3 +198,32 @@
  		UnMount_Main_Partitions();
  	#ifdef AB_OTA_UPDATER
  		DataManager::SetValue("tw_active_slot", Get_Active_Slot_Display());
+@@ -717,13 +736,16 @@
+ 				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", crypto_blkdev.c_str());
+ #endif
+ 				Decrypt_Data->Is_Decrypted = true; // Needed to make the mount function work correctly
++				Fox_Log_Boot_Timing("    meta_mount_done");
+ 				int retry_count = 10;
+ 				while (!Decrypt_Data->Mount(false) && --retry_count)
+ 					usleep(500);
++				Fox_Log_Boot_Timing("    data_mounted");
+ 				if (Decrypt_Data->Mount(false)) {
+ 					if (!Decrypt_Data->Decrypt_FBE_DE()) {
+ 						LOGERR("Unable to decrypt FBE device\n");
+ 					}
++					Fox_Log_Boot_Timing("    fbe_de_done");
+ 
+ 				} else {
+ 					LOGINFO("Failed to mount data after metadata decrypt\n");
+@@ -763,9 +785,11 @@
+ 			}
+ 		}
+ 	}
++	Fox_Log_Boot_Timing("    crypto_type_handled");
+ 	if (Decrypt_Data && (!Decrypt_Data->Is_Encrypted || Decrypt_Data->Is_Decrypted)) {
+ 		Decrypt_Adopted();
+ 	}
++	Fox_Log_Boot_Timing("    adopted_done");
+ #endif
+ }
+ 
