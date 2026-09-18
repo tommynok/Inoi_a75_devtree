@@ -1,12 +1,3 @@
-# Re-run the TrustKernel key sync once the vendor partitions have settled.
-# The common tree already calls it from "on fs", immediately after mounting
-# /mnt/vendor/persist - but as user system, and if that mount is not ready yet
-# the copy silently produces nothing. teed-init.sh in this tree is guarded and
-# idempotent, so a second pass here costs a few file copies and closes that
-# window. Run as root so the chown inside it can actually take effect.
-on post-fs
-    exec u:r:recovery:s0 root root -- /vendor/bin/teed-init.sh
-
 on boot
     # Enable DT2W on boot
     chmod 0666 /sys/devices/platform/soc/11013000.spi3/spi_master/spi3/spi3.0/fts_gesture_mode

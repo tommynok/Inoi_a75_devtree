@@ -9,16 +9,16 @@
 # wrong PIN produces.
 #
 # This overrides the copy in the common tree (TARGET_RECOVERY_DEVICE_DIRS lists
-# the device path after the common one, so this file wins). Three differences:
+# the device path after the common one, so this file wins). The point of the
+# override is the source guard: the common version runs "rm -rf <dest>/*"
+# before looking at the source at all, so if /mnt/vendor/persist is not mounted
+# yet it wipes working copies and leaves nothing behind.
 #
-#  - the common version runs "rm -rf <dest>/*" before looking at the source, so
-#    a source that is not mounted yet leaves the destination empty
-#  - it does not check the source exists at all
-#  - "cp -rfp" leaves the group as root. Observed on a working device:
-#        /mnt/vendor/persist/t6/      drwx------ system system
-#        /mnt/vendor/persist/t6_rec/  drwx------ system root
-#    teed runs as user system / group system, so that works only because the
-#    owner happens to match - by accident rather than by design.
+# Ownership is deliberately left alone. init calls this as user system, which
+# cannot chown, and it does not need to: stock leaves the copies as
+# "system root" and teed reads them fine, because it runs as user system and
+# the owner matches. Only the mode matters - mkdir creates 0755, so the chmod
+# below is what keeps the keys at 0700.
 #
 # Idempotent: safe to run more than once, and safe to run when a source is
 # missing.
@@ -31,7 +31,6 @@ sync_keys() {
 
 	mkdir -p "$dst" || return 0
 	cp -af "$src"/* "$dst"/ 2>/dev/null
-	chown -R system:system "$dst"
 	chmod -R 0700 "$dst"
 }
 
