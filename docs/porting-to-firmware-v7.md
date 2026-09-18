@@ -21,25 +21,17 @@ Without that copy, `teed` comes up without a device key, keymint cannot run the
 operation, and a **correct** PIN is rejected — surfacing only as
 `Begin Operation failed`, which is also what a wrong PIN produces.
 
-The version in the common tree has three weaknesses:
+The version in the common tree has one real weakness:
 
 ```sh
 rm -rf  /mnt/vendor/persist/t6_rec/*        # destroys the copy first
 cp -rfp /mnt/vendor/persist/t6/* /mnt/vendor/persist/t6_rec
 ```
 
-- it deletes the destination **before** checking the source is readable, so a
-  source that is not mounted yet leaves nothing behind
-- no guard on the source at all
-- `cp -rfp` leaves the group as **root**. Observed on a working V6 device:
-
-```
-/mnt/vendor/persist/t6/      drwx------ system system
-/mnt/vendor/persist/t6_rec/  drwx------ system root     <-- group
-```
-
-`teed` runs as `user system / group system`, so this only works because the
-owner happens to match. It works by accident, not by design.
+It deletes the destination **before** checking the source at all, so a source
+that is not mounted yet leaves nothing behind. That is a race, so it can come
+and go between boots, and it produces exactly the symptom another builder
+reported on V7: `t6` populated, `t6_rec` empty.
 
 His replacement, placed in the **device** tree at
 `recovery/root/vendor/bin/teed-init.sh` so it overrides the common one:
@@ -73,6 +65,35 @@ on post-fs
 
 On this device `/mnt/vendor/protect_f/tee` is empty on both sides, so that half
 is a no-op here — harmless, and correct to keep for devices where it is not.
+
+### What we took and what we dropped
+
+Only the source guard is worth taking. The `chown` and the `on post-fs` hook
+were both tried here and both removed — see commit `84080bd` on the working
+branch.
+
+- **`chown -R system:system` does nothing.** init calls the script as user
+  `system`, which cannot chown, so it fails silently on every boot.
+- **It is not needed either.** Stock leaves the copies as `system root` and
+  `teed` reads them, because `teed` runs as user `system` and the **owner**
+  matches — the group is never consulted. Verified on a V6 device where
+  decryption works: the gatekeeper diagnostics patch logs
+  `credential accepted (code 0)` with the group still `root`:
+
+```
+/mnt/vendor/persist/t6/      drwx------ system system
+/mnt/vendor/persist/t6_rec/  drwx------ system root
+```
+
+- **The `on post-fs` block existed only to give that chown root**, and it does
+  not appear to fire in this recovery. With the script confirmed present on the
+  device byte-for-byte, the group on `t6_rec` was still `root` afterwards and
+  `dmesg | grep -i teed-init` returned nothing.
+- **`chmod 0700` is kept**: `mkdir -p` creates the destination at 0755.
+
+An earlier version of this file called the stock `system root` ownership
+"accidental". That was a guess, and it was wrong — it is simply how stock
+works.
 
 ## V7-specific changes — only when actually moving to V7
 
