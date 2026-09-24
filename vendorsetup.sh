@@ -121,12 +121,12 @@ export OF_ENABLE_FRP_ADDON=1
 export FOX_COMPRESS_EXECUTABLES=0
 # Build tag, shown on the About screen as "Build type: <value>" and used in
 # the output file name (settings.xml renders it from the fox_build_type1 GUI
-# constant). This branch is the V6 line, so it says so: the V7 line lives on
-# fw7 and tags itself V7, and the two must never be confused on a device -
+# constant). This branch is the V7 line, so it says so: the V6 line lives on
+# main and tags itself V6, and the two must never be confused on a device -
 # they carry different identities and different recovery kernel modules.
 # FOX_VERSION cannot serve this purpose -- orangefox.mk raises a hard build
 # error on it, it is obsolete in favour of FOX_MAINTAINER_PATCH_VERSION.
-export FOX_BUILD_TYPE=V6
+export FOX_BUILD_TYPE=V7
 
 ln -sf gnused device/inoi/INOI_A75/recovery/root/sbin/sed
 ln -sf gnutar device/inoi/INOI_A75/recovery/root/sbin/tar

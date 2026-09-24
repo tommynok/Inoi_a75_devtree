@@ -1,0 +1,11 @@
+INOI A75 (A750) - OrangeFox Recovery
+------------------------------------
+
+* Guzram - device tree
+* sysretq0 - firmware V7 support and fixes
+
+Huge thanks to both of them. Without their
+work this build would not exist.
+
+Thanks also to everyone who tested it and
+sent reports back.
