@@ -82,23 +82,42 @@ unknown. One test settles it:
 If `rtcui` stays 0, the level is only persisted by the driver's own shutdown
 path and this cannot be fixed from recovery at all.
 
-## Ruled out
+## What the board flags actually do
 
-`TW_CUSTOM_BATTERY_PATH` and `OF_BATTERY_PATH`, which another fork added for
-this, cannot affect any of the above:
+An earlier revision of this file said `TW_CUSTOM_BATTERY_PATH` was compiled
+out and could not matter. That was wrong, and it was wrong in the way that
+costs the most: the claim was made from reading `twrp.cpp` alone, without
+checking `Android.mk`, where the flag turns its own guard on.
 
-- `TW_CUSTOM_BATTERY_PATH` is read in `twrp.cpp` only inside
-  `#ifdef TW_USE_LEGACY_BATTERY_SERVICES`, which no tree here defines, so that
-  code is compiled out. Its only live consumer is `TWFunc::Wait_For_Battery()`,
-  whose `#else` default is already `/sys/class/power_supply/battery` - the same
-  value.
-- `OF_BATTERY_PATH` does not appear anywhere in the recovery sources or in the
-  OrangeFox vendor build script. It is not a flag.
+```make
+ifneq ($(TW_CUSTOM_BATTERY_PATH),)
+    TW_USE_LEGACY_BATTERY_SERVICES := true
+    LOCAL_CFLAGS += -DTW_CUSTOM_BATTERY_PATH=$(TW_CUSTOM_BATTERY_PATH)
+endif
+```
 
-The displayed charge comes from `GetBatteryInfo()` via the health HAL, so a
-path setting could not change it either way. If that fork's build really does
-not show the jump, the credit belongs to its V7 kernel modules - every charger
-and gauge module differs there, including `mt6358_battery.ko`, the gauge that
-computes the percentage. Those cannot be transplanted: their vermagic is
-`5.10.237-android12-9-g5ae907723135` against `5.10.218-android12-9-g21e1557e971d`
-here, so they would refuse to load.
+So setting the path is enough to switch the battery code path. The two are:
+
+- default - `GetBatteryInfo()`, the health HAL
+- with the flag - `twrp.cpp` reads `capacity` and `status` straight out of
+  sysfs, in the background monitor loop
+
+OrangeFox's own build script says which to prefer, in `orangefox.mk`:
+
+```
+# whether to use legacy services for battery, or health services
+# (default - but broken on Mtk)
+```
+
+This device is MT6789. `OF_USE_LEGACY_BATTERY_SERVICES=1` sets the same
+switch explicitly and is the clearer way to ask for it.
+
+`OF_BATTERY_PATH` really does do nothing - it appears nowhere in the recovery
+sources or in `orangefox.mk`. Harmless, but not a flag.
+
+Reported result: on a build carrying the flag the level no longer goes wrong.
+That build also ships V7 kernel modules, so this is not a controlled result -
+what it does establish is that the flag is live, which is the part this file
+previously got wrong. Note also that the flag changes what recovery
+*displays*; the `rtcui=0` re-estimate above happens in the kernel gauge and is
+a separate mechanism.
