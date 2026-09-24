@@ -29,9 +29,9 @@ on:
         required: true
         default: 'https://github.com/tommynok/Inoi_a75_devtree'
       DEVICE_TREE_BRANCH:
-        description: 'DEVICE_TREE_BRANCH'
+        description: 'DEVICE_TREE_BRANCH ("auto" = same branch the workflow is run from)'
         required: true
-        default: 'main'
+        default: 'auto'
       DEVICE_PATH:
         description: 'DEVICE_PATH'
         required: true
@@ -126,7 +126,14 @@ jobs:
       - name: Clone device tree
         run: |
           cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-          git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+          DT_BRANCH="${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
+          if [ "$DT_BRANCH" = "auto" ]; then
+            DT_BRANCH="${{ github.ref_name }}"
+            echo "DEVICE_TREE_BRANCH=auto -> using the branch this workflow was run from"
+          fi
+          echo "Cloning device tree branch: $DT_BRANCH"
+          git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b "$DT_BRANCH" ./${{ github.event.inputs.DEVICE_PATH }}
+          echo "Device tree HEAD: $(git -C ./${{ github.event.inputs.DEVICE_PATH }} log --oneline -1)"
         working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
       - name: Clone common tree

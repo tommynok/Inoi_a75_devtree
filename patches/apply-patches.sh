@@ -62,6 +62,112 @@ else
     echo "WARNING: Update_Size cache patch failed dry-run (partition.cpp upstream context may have changed) - skipping, build continues"
 fi
 
+# --- 0d. Board backup exclusions for every partition + internal self-backup ---
+# TW_BACKUP_EXCLUSIONS is only read in Setup_Data_Media(), which runs for /data
+# alone, and /data already excludes /data/media wholesale - so the board list
+# never reached the /storage mount point and had no effect at all. This moves
+# the list into Partition_Post_Processing(), which runs for every partition.
+# It also gates the "cannot backup Internal Storage onto itself" abort behind
+# TW_ALLOW_INTERNAL_SELF_BACKUP, so the board can opt in once the destination
+# folder is covered by the exclusions.
+BACKUP_EXCL_PATCH="$PATCH_DIR/patch-backup-exclusions-internal-fox_12.1.diff"
+echo "=== Applying backup exclusions / internal self-backup ==="
+if [ ! -f "$BACKUP_EXCL_PATCH" ]; then
+    echo "WARNING: $BACKUP_EXCL_PATCH not found, skipping backup exclusions fix"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$BACKUP_EXCL_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$BACKUP_EXCL_PATCH"
+    echo "Backup exclusions patch applied successfully"
+else
+    echo "WARNING: backup exclusions patch failed dry-run (partition.cpp/partitionmanager.cpp/Android.mk upstream context may have changed) - skipping, build continues"
+fi
+
+# --- 0e. Cap the persistent recovery log ---
+# TWFunc::Copy_Log() appends each boot's log to the full contents of the
+# previous one and recompresses the lot, with no upper bound. On this device
+# /data/recovery/log.gz had reached 66 MB compressed (~1 GB of text), and
+# Update_Log_File() - which calls it, twice per boot - spent 11.5 s per call.
+# Deleting the file dropped startup from 65.4 s to 42.3 s; this patch keeps it
+# from growing back, starting a fresh log past a 1 MB cap. last_log.gz still
+# holds the previous contents.
+# Disable by renaming this .diff to .diff.bak.
+LOG_CAP_PATCH="$PATCH_DIR/patch-cap-persistent-log-fox_12.1.diff"
+echo "=== Applying persistent log cap ==="
+if [ ! -f "$LOG_CAP_PATCH" ]; then
+    echo "WARNING: $LOG_CAP_PATCH not found, skipping log cap"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$LOG_CAP_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$LOG_CAP_PATCH"
+    echo "Persistent log cap applied successfully"
+else
+    echo "WARNING: log cap patch failed dry-run (twrp-functions.cpp upstream context may have changed) - skipping, build continues"
+fi
+
+# --- 0f. Skip the fs_mgr fsck of /data on every recovery entry ---
+# The ROM's own fstab (/vendor/etc/fstab.mt6789 here) is copied to
+# /etc/additional.fstab and handed to vold for the metadata-encrypted mount.
+# It carries the fs_mgr "check" flag on /data, so fs_mgr runs fsck.f2fs first.
+# Android never leaves /data with a clean-unmount marker when rebooting into
+# recovery, so this fires on every entry from a booted system: measured at
+# 34.8 s (ro.boottime.init.fsck.data=34839), reporting the filesystem clean on
+# every count. From recovery to recovery, where the unmount is clean, the same
+# check costs 48 ms. The patch strips the flag from our private copy only;
+# the ROM's fstab is untouched.
+# Disable by renaming this .diff to .diff.bak - the gate below then skips it.
+DATA_FSCK_PATCH="$PATCH_DIR/patch-skip-data-fsck-fox_12.1.diff"
+echo "=== Applying /data fsck skip ==="
+if [ ! -f "$DATA_FSCK_PATCH" ]; then
+    echo "WARNING: $DATA_FSCK_PATCH not found, skipping /data fsck patch"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$DATA_FSCK_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$DATA_FSCK_PATCH"
+    echo "/data fsck skip applied successfully"
+else
+    echo "WARNING: /data fsck patch failed dry-run (partitionmanager.cpp upstream context may have changed) - skipping, build continues"
+fi
+
+# --- 0g. Boot-phase timing instrumentation (twrp.cpp) ---
+# Pure logging, zero functional change: adds Fox_Log_Boot_Timing(), which
+# prints /proc/uptime with a phase tag, at the checkpoints main() and
+# process_recovery_mode() already pass through (fstab, gui_init,
+# gui_loadResources, Decrypt_Page, Fixup_Time_On_Boot, and the
+# reapply_settings-vs-gui_start branch). Existing code paths and return
+# values are untouched. Read the result with:
+#   grep BOOT_TIMING /tmp/recovery.log
+BOOT_TIMING_PATCH="$PATCH_DIR/patch-boot-timing-fox_12.1.diff"
+echo "=== Applying boot-timing instrumentation ==="
+if [ ! -f "$BOOT_TIMING_PATCH" ]; then
+    echo "WARNING: $BOOT_TIMING_PATCH not found, skipping boot-timing instrumentation"
+elif patch -p1 --dry-run -d "$FOX/bootable/recovery" < "$BOOT_TIMING_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/bootable/recovery" < "$BOOT_TIMING_PATCH"
+    echo "Boot-timing instrumentation applied successfully"
+else
+    echo "WARNING: boot-timing patch failed dry-run (twrp.cpp upstream context may have changed) - skipping, build continues"
+fi
+
+# --- 0h. Gatekeeper diagnostics (system/vold, NOT bootable/recovery) ---
+# The FBE/spblob credential path calls gatekeeper->verify() and only acts on a
+# plain accept: a rejected credential, a lockout, or a keystore that refuses the
+# auth token all leave the lambda silently, no token is delivered, and the
+# failure only surfaces later in unwrapSyntheticPasswordBlob() as a bare
+# "Begin Operation failed" - the exact line a wrong PIN produces. A correct PIN
+# entered while gatekeeper is throttling is therefore indistinguishable from a
+# wrong one. The other verify() call in the same file, on the FDE path, does
+# handle ERROR_RETRY_TIMEOUT, so this is an omission rather than a design.
+# Logging only: no control flow changes, every branch still falls through
+# exactly as before.
+# Note the different -d: this patch applies to system/vold.
+# Disable by renaming this .diff to .diff.bak.
+GK_DIAG_PATCH="$PATCH_DIR/patch-gatekeeper-diagnostics-fox_12.1.diff"
+echo "=== Applying gatekeeper diagnostics ==="
+if [ ! -f "$GK_DIAG_PATCH" ]; then
+    echo "WARNING: $GK_DIAG_PATCH not found, skipping gatekeeper diagnostics"
+elif [ ! -d "$FOX/system/vold" ]; then
+    echo "WARNING: $FOX/system/vold not present - skipping gatekeeper diagnostics"
+elif patch -p1 --dry-run -d "$FOX/system/vold" < "$GK_DIAG_PATCH" > /dev/null 2>&1; then
+    patch -p1 -d "$FOX/system/vold" < "$GK_DIAG_PATCH"
+    echo "Gatekeeper diagnostics applied successfully"
+else
+    echo "WARNING: gatekeeper diagnostics failed dry-run (Decrypt.cpp upstream context may have changed) - skipping, build continues"
+fi
+
 echo "=== Theme slimming: start ==="
 echo "GUI dir size before:"
 du -sh "$GUI"

@@ -1,0 +1,49 @@
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -130,6 +130,38 @@
+ 
+ std::string additional_fstab = "/etc/additional.fstab";
+ 
++// The ROM's own fstab, which we copy to additional_fstab and hand to vold for
++// the metadata-encrypted mount, carries the fs_mgr "check" flag on /data. vold
++// honours it, so fs_mgr runs a full fsck.f2fs before mounting. Entering recovery
++// from a booted Android always finds /data without a clean-unmount marker, so
++// that check runs every time: measured at 34.8 s here (477 GB f2fs), reporting
++// the filesystem clean on every count. Coming from recovery itself, where the
++// unmount is clean, the same check costs 48 ms - so this only ever removes the
++// scan of an already-consistent filesystem.
++//
++// Only our private copy is rewritten; the ROM's fstab is untouched, so normal
++// Android boots still check /data exactly as before, and "Repair or Change File
++// System" in the GUI still runs fsck on demand.
++static void Fox_Strip_Fsck_Flag(const std::string& fstab_path) {
++	std::string contents;
++	if (!android::base::ReadFileToString(fstab_path, &contents))
++		return;
++
++	// Match the flag as a whole token: ",check," never matches ",checkpoint=fs,".
++	size_t at = contents.find(",check,");
++	if (at == std::string::npos)
++		return;
++	while (at != std::string::npos) {
++		contents.erase(at, 6);
++		at = contents.find(",check,", at);
++	}
++
++	if (android::base::WriteStringToFile(contents, fstab_path))
++		LOGINFO("Fox: dropped the fs_mgr 'check' flag from %s\n", fstab_path.c_str());
++	else
++		LOGINFO("Fox: could not rewrite %s without the 'check' flag\n", fstab_path.c_str());
++}
++
+ TWPartitionManager::TWPartitionManager(void) {
+ 	mtp_was_enabled = false;
+ 	mtp_write_fd = -1;
+@@ -503,6 +535,7 @@
+ 		if (TWFunc::Find_Fstab(Fstab_Filename)) {
+ 			LOGINFO("Fstab: %s\n", Fstab_Filename.c_str());
+ 			TWFunc::copy_file(Fstab_Filename, additional_fstab, 0600, false);
++			Fox_Strip_Fsck_Flag(additional_fstab);
+ 			Fstab_Filename = additional_fstab;
+ 			property_set("fstab.additional", "1");
+ 			goto parse;

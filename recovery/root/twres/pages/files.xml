@@ -335,6 +335,18 @@
 					<action function="set">tw_back=choosedestinationfolder</action>
 					<action function="page">choosedestinationfolder</action>
 				</listitem>
+				<listitem name="{@fm_open_makezip} (7Z / TAR+ZSTD)">
+					<icon res="archive"/>
+					<action function="set">of_pack_pw=</action>
+					<action function="set">tw_7z_pass=</action>
+					<action function="set">tw_7z_pass2=</action>
+					<action function="set">tw_7z_pass_disp=</action>
+					<action function="set">tw_7z_pass2_disp=</action>
+					<action function="set">of_pack_pw_err=0</action>
+					<action function="set">of_pw_return=fm_ms_pack</action>
+					<action function="set">of_pack_mode=2</action>
+					<action function="page">fm_ms_pack</action>
+				</listitem>
 				<listitem name="{@fm_delete_btn}">
 					<icon res="delete"/>
 					<action function="set">of_batch_cmd_d=rm -rf</action>
@@ -408,6 +420,13 @@
 		</page>
 				
 		<page name="files_redirect">
+			<!-- Start every file with a blank archive password, so a value typed
+			     for one archive is never silently reused for the next one. -->
+			<action>
+				<action function="set">tw_7z_pass=</action>
+				<action function="set">tw_7z_pass_disp=</action>
+			</action>
+
 			<action>
 				<condition var1="of_support_ozip_decryption" var2="1"/>
 				<condition var1="tw_file_extension" var2="ozip"/>
@@ -552,6 +571,22 @@
 				<condition var1="tw_file_extension" var2="zst"/>
 				<action function="set">fex_found=1</action>
 				<action function="set">tw_artype=10</action>
+				<action function="set">tw_extract_action=0</action>
+				<action function="page">archive_confirm</action>
+			</action>
+
+			<action>
+				<condition var1="tw_file_extension" var2="7z"/>
+				<action function="set">fex_found=1</action>
+				<action function="set">tw_artype=12</action>
+				<action function="set">tw_extract_action=0</action>
+				<action function="page">archive_confirm</action>
+			</action>
+
+			<action>
+				<condition var1="tw_file_extension" var2="rar"/>
+				<action function="set">fex_found=1</action>
+				<action function="set">tw_artype=13</action>
 				<action function="set">tw_extract_action=0</action>
 				<action function="page">archive_confirm</action>
 			</action>
@@ -977,6 +1012,12 @@
 					<action function="changeterminal">"%tw_filename1%"</action>
 				</listitem>
 				<listitem name="{@fm_open_makezip}">
+					<action function="set">of_pack_pw=</action>
+					<action function="set">tw_7z_pass=</action>
+					<action function="set">tw_7z_pass2=</action>
+					<action function="set">tw_7z_pass_disp=</action>
+					<action function="set">tw_7z_pass2_disp=</action>
+					<action function="set">of_pack_pw_err=0</action>
 					<condition var1="opts_show" var2="1"/>
 					<icon res="archive"/>
 					<action function="set">tw_artype=%tw_fm_isfolder%</action>
@@ -1835,6 +1876,7 @@
 				<listitem name="CPIO">2<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="ZIP">0<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="TAR+ZSTD">11<condition var1="tw_fm_isfolder" var2="1"/></listitem>
+				<listitem name="7Z">12<condition var1="tw_fm_isfolder" var2="1"/></listitem>
 				<listitem name="ZIP">0<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="TAR">1<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem>
 				<listitem name="CPIO">2<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem>
@@ -1844,6 +1886,8 @@
 				<listitem name="ZLIB (ZZ)">8<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="ZSTD">10<condition var1="tw_fm_isfolder" var2="0"/></listitem>
 				<listitem name="TAR+ZSTD">11<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack .tar.zst in one step -->
+				<listitem name="7Z">12<condition var1="tw_fm_isfolder" var2="0"/></listitem>
+				<listitem name="RAR">13<condition var1="tw_fm_isfolder" var2="0"/><condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only: 7-Zip cannot create RAR -->
 				<listitem name="LZMA">5<condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only -->
 				<listitem name="XZ">7<condition var1="tw_extract_action" var2="0"/></listitem> <!-- Unpack only -->
 				<!--listitem name="Z">9<condition var1="tw_extract_action" var2="0"/></listitem--> <!-- Unpack only -->
@@ -1856,6 +1900,81 @@
 				<condition var1="tw_artype" op="!=" var2="1"/>
 				<text>{@arc_lvl_title}</text>
 			</text>
+
+			<!-- Password for encrypted 7z/rar archives. Typing needs the keyboard
+			     templates, which this page does not use, so the field itself lives
+			     on the archive_pass page and this is only the way in.
+			     Placed below the archive-type listbox (row2_2a_y + lb_l10 ends at
+			     1470) and above the confirm slider caption (screen_h-425), the one
+			     band that is free while unpacking, when the listbox is full. -->
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row8_1_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>Password: %tw_7z_pass_disp%</text>
+			</text>
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row8_1_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<text>Password: %tw_7z_pass_disp%</text>
+			</text>
+
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row8_2_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>Tap to set (encrypted archives only)</text>
+			</text>
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row8_2_y%"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<text>Tap to set (encrypted archives only)</text>
+			</text>
+
+			<button>
+				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="12"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="page">archive_pass</action>
+			</button>
+
+			<!-- Packing gets the same optional password as the multi-select screen,
+			     entered twice, so the two ways into an archive behave alike. -->
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row8_1_y%"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>{@set_password}: %tw_7z_pass_disp%</text>
+			</text>
+
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row8_2_y%"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_artype" var2="12"/>
+				<text>{@encryption_hdr}</text>
+			</text>
+
+			<button>
+				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_artype" var2="12"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="set">of_pw_return=archive_confirm</action>
+				<action function="page">fm_ms_pass</action>
+			</button>
+			<button>
+				<placement x="0" y="%row8_1_y%" w="%screen_w%" h="120"/>
+				<condition var1="tw_extract_action" var2="0"/>
+				<condition var1="tw_artype" var2="13"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="page">archive_pass</action>
+			</button>
 			<slidervalue>
 				<placement x="%slider_x%" y="%row6_2_y%" w="%slidervalue_w%"/>
 				<condition var1="tw_artype" op="!=" var2="1"/>
@@ -1909,6 +2028,11 @@
 				<action function="set">tw_pack_lvl=1</action>
 			</action>
 
+			<action>
+				<condition var1="tw_pack_lvl" op="!=" var2=""/>
+				<action function="set">tw_pack_lvl=5</action>
+			</action>
+
 			<template name="gestures"/>
 			
 			<action>
@@ -1919,6 +2043,56 @@
 			<action>
 				<touch key="home"/>
 				<action function="page">main</action>
+			</action>
+		</page>
+
+		<page name="archive_pass">
+			<template name="base_ex_key"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>Password</text>
+			</text>
+
+			<text style="text_ab_subtitle_lim">
+				<placement x="%col1_x%" y="%row1_2_y%"/>
+				<text>%tw_filename1%</text>
+			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x%" y="%row2_1a_y%"/>
+				<text>Leave empty if the archive is not encrypted</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x%" y="%row2_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%tw_7z_pass_disp%</text>
+				<data name="tw_7z_pass" mask="*" maskvariable="tw_7z_pass_disp"/>
+				<actions>
+					<action function="overlay"/>
+					<action function="page">archive_confirm</action>
+				</actions>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x%" y="%row2_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
+
+			<template name="gestures_key"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">archive_confirm</action>
 			</action>
 		</page>
 
@@ -1955,7 +2129,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf '%tw_file_location1%.tar' *;</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf '%tw_file_location1%.tar' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -1964,7 +2138,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" var2="1"/>
-				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf '%tw_filename1%.tar' *;</action>
+				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf '%tw_filename1%.tar' .;</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -1973,7 +2147,7 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" op="!=" var2="1"/>
-				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf - * | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_file_location1%.tar.zst';</action>
+				<action function="terminalcommand">cd '%tw_file_location1%'; tar -cvf - . | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_file_location1%.tar.zst';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -1982,7 +2156,33 @@
 				<condition var1="tw_extract_action" var2="1"/>
 				<condition var1="tw_fm_isfolder" var2="1"/>
 				<condition var1="tw_hold" var2="1"/>
-				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf - * | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_filename1%.tar.zst';</action>
+				<action function="terminalcommand">cd '%tw_filename1%'; tar -cvf - . | /sbin/zstd -%tw_pack_lvl% -T0 -c > '%tw_filename1%.tar.zst';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" var2="1"/>
+				<condition var1="tw_hold" op="!=" var2="1"/>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_file_location1%.7z' .;</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" var2="1"/>
+				<condition var1="tw_hold" var2="1"/>
+				<action function="terminalcommand">cd '%tw_filename1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_filename1%.7z' .;</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" var2="1"/>
+				<condition var1="tw_fm_isfolder" op="!=" var2="1"/>
+				<action function="terminalcommand">cd '%tw_file_location1%'; /sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% '%tw_filename1%.7z' '%tw_selection1%';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2058,6 +2258,20 @@
 				<condition var1="tw_extract_action" op="!=" var2="1"/>
 				<condition var1="tw_fm_isfolder" op="!=" var2="1"/>
 				<action function="terminalcommand">N=$(basename '%tw_selection1%' .tar.zst); mkdir -p "%tw_file_location1%/$N"; /sbin/zstd -dc '%tw_filename1%' | tar -xvf - -C "%tw_file_location1%/$N";</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="12"/>
+				<condition var1="tw_extract_action" op="!=" var2="1"/>
+				<action function="terminalcommand">/sbin/7zzs x -y -p'%tw_7z_pass%' '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
+				<action function="set">tw_extract_action=0</action>
+			</action>
+
+			<action>
+				<condition var1="tw_artype" var2="13"/>
+				<condition var1="tw_extract_action" op="!=" var2="1"/>
+				<action function="terminalcommand">/sbin/7zzs x -y -p'%tw_7z_pass%' '%tw_filename1%' -o'%tw_file_location1%/%tw_selection1%_unpack';</action>
 				<action function="set">tw_extract_action=0</action>
 			</action>
 
@@ -2153,6 +2367,285 @@
 			</text>
 		</page>
 		
+		<!-- Pack everything selected in the file manager into one .7z. The batch
+		     engine runs of_batch_cmd_* once per selected item, and 7-Zip adds each
+		     one to the same archive, so a multi-select turns into a single file.
+		     cmdf() runs the command through popen, so the archive name is built by
+		     the shell: the folder's own name plus a timestamp taken once per run
+		     and kept in /tmp, which is why every item lands in the same archive
+		     while consecutive runs never collide. -->
+		<page name="fm_ms_pack">
+			<template name="base_ex"/>
+
+			<!-- cmdf() prefixes every command with "cd" to this, and an empty value
+			     made the shell fail before reaching the command itself. -->
+			<action>
+				<action function="set">tw_terminal_location=%tw_file_location1%</action>
+			</action>
+
+			<!-- tw_pack_lvl is shared with the other pack screens and only gets a
+			     value once its slider is touched, not on render. Skipping it here,
+			     e.g. accepting the TAR+ZSTD default without touching the level,
+			     left it empty, and the packing command came out as "zstd -  -T0 -c":
+			     level 3, zstd's own fallback for no -N, not whatever the slider showed.
+
+			     The operator is load-bearing. An empty var2 does not mean "equals
+			     empty": object.cpp returns true when var1 is NON-empty, so plain
+			     var2="" fires whenever the level IS set. Combined with an action
+			     that writes the very variable its condition watches, and with
+			     action.cpp re-running actions on every change to a condition
+			     variable, that recursed until the stack blew and the device
+			     rebooted the instant the slider was touched. With op="!=" the
+			     condition holds only while the value is genuinely unset, so the
+			     single write that follows makes it false and it stops. -->
+			<action>
+				<condition var1="tw_pack_lvl" op="!=" var2=""/>
+				<action function="set">tw_pack_lvl=5</action>
+			</action>
+
+			<!-- Stamp the run, alone in its own block: terminalcommand runs as a
+			     threaded operation, and a "set" queued behind it is refused with
+			     "Another threaded action is already running". Written here rather
+			     than inside the packing command because that one is passed through
+			     sprintf, which mangles a date format's % signs. -->
+			<action>
+				<action function="terminalcommand">date +%%Y%%m%%d-%%H%%M%%S &gt; /tmp/of_packstamp</action>
+			</action>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>{@fm_open_makezip}</text>
+			</text>
+
+			<text style="text_ab_subtitle_lim">
+				<placement x="%col1_x%" y="%row1_2_y%"/>
+				<text>{@in} %tw_file_location1%</text>
+			</text>
+
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row2_1a_y%"/>
+				<text>{@arc_lvl_title}</text>
+			</text>
+
+			<slidervalue>
+				<placement x="%slider_x%" y="%row2_2a_y%" w="%slidervalue_w%"/>
+				<data variable="tw_pack_lvl" min="1" max="9" showrange="0" showcurr="0" changeondrag="1"/>
+			</slidervalue>
+
+			<text style="text_body1">
+				<placement x="%col1_x_indent%" y="%row3_1a_y%"/>
+				<text>{@arc_lvl} %tw_pack_lvl%</text>
+			</text>
+
+			<text style="caption">
+				<placement x="%gl_text_x%" y="%row5_1a_y%"/>
+				<text>{@arc_type}</text>
+			</text>
+
+			<listbox>
+				<placement x="0" y="%row5_2a_y%" w="%screen_w%" h="%lb_l3%"/>
+				<data name="of_pack_mode"/>
+				<listitem name="TAR+ZSTD - one per item">2</listitem>
+				<listitem name="7Z - one archive">0</listitem>
+				<listitem name="7Z - one per item">1</listitem>
+			</listbox>
+
+			<text style="caption">
+				<condition var1="of_pack_mode" op="!=" var2="2"/>
+				<placement x="%gl_text_x%" y="%row4_1a_y%"/>
+				<text>Password: %tw_7z_pass_disp%</text>
+			</text>
+
+			<text style="text_body1">
+				<condition var1="of_pack_mode" op="!=" var2="2"/>
+				<placement x="%col1_x_indent%" y="%row4_2a_y%"/>
+				<text>Tap to set (optional)</text>
+			</text>
+
+			<button>
+				<condition var1="of_pack_mode" op="!=" var2="2"/>
+				<placement x="0" y="%row4_1a_y%" w="%screen_w%" h="120"/>
+				<highlight color="%highlight_color%"/>
+				<fill color="%transparent%"/>
+				<action function="page">fm_ms_pass</action>
+			</button>
+
+			<text style="caption">
+				<placement x="%center_x%" y="%slider_text_y%" placement="5"/>
+				<text>{@swipe_to_confirm}</text>
+			</text>
+
+			<slider style="slider_action">
+				<placement x="%center_x%" y="%slider_y%" placement="5"/>
+				<action function="set">tw_fm_text2=</action>
+				<action function="set">tw_fm_text3=</action>
+				<action function="set">tw_include_text3=0</action>
+				<action function="set">tw_back=fm_ms_actions</action>
+				<action function="page">fm_ms_pack_go</action>
+			</slider>
+
+			<template name="gestures"/>
+
+			<action>
+				<touch key="home"/>
+				<action function="page">main</action>
+			</action>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">fm_ms_actions</action>
+			</action>
+		</page>
+
+		<!-- Password entry, mirroring the backup screen's own flow: enter, repeat,
+		     compare on a page of its own, and report a mismatch by bouncing back
+		     through a page that does nothing but reset. Comparison names the second
+		     variable rather than expanding it, which is how Fox compares two
+		     variables. The password reaches 7-Zip on the command line, and the
+		     patched command logging redacts anything after -p. -->
+		<!-- One command per mode. The batch engine appends the item's path to
+		     whatever is set here, so the per-item modes wrap the command in sh -c
+		     and read that path back as $0: cmdf() substitutes the path exactly
+		     once, and a second %s in the format would read past the argument. -->
+		<page name="fm_ms_pack_go">
+			<action>
+				<condition var1="of_pack_mode" var2="0"/>
+				<action function="set">tw_fm_text1=7Z</action>
+				<action function="set">of_batch_cmd_d=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
+				<action function="set">of_batch_cmd_f=/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "%tw_file_location1%/$(basename '%tw_file_location1%')_$(cat /tmp/of_packstamp).7z"</action>
+				<action function="page">filemanageraction</action>
+			</action>
+
+			<action>
+				<condition var1="of_pack_mode" var2="1"/>
+				<action function="set">tw_fm_text1=7Z</action>
+				<action function="set">of_batch_cmd_d=sh -c '/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "$0_$(cat /tmp/of_packstamp).7z" "$0"'</action>
+				<action function="set">of_batch_cmd_f=sh -c '/sbin/7zzs a -t7z -y -mx=%tw_pack_lvl% -mmt=on %of_pack_pw% "$0_$(cat /tmp/of_packstamp).7z" "$0"'</action>
+				<action function="page">filemanageraction</action>
+			</action>
+
+			<action>
+				<condition var1="of_pack_mode" var2="2"/>
+				<action function="set">tw_fm_text1=TAR+ZSTD</action>
+				<action function="set">of_batch_cmd_d=sh -c 'F="$0_$(cat /tmp/of_packstamp).tar.zst"; tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$F"; du -h "$F"'</action>
+				<action function="set">of_batch_cmd_f=sh -c 'F="$0_$(cat /tmp/of_packstamp).tar.zst"; tar -C "$(dirname "$0")" -cf - "$(basename "$0")" | /sbin/zstd -%tw_pack_lvl% -T0 -c &gt; "$F"; du -h "$F"'</action>
+				<action function="page">filemanageraction</action>
+			</action>
+		</page>
+
+		<page name="fm_ms_pass">
+			<template name="base_ex_key"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>{@encryption_hdr}</text>
+			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x_caption%" y="%row2_1a_y%"/>
+				<text>{@set_password}</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x_caption%" y="%row2_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%tw_7z_pass_disp%</text>
+				<data name="tw_7z_pass" mask="*" maskvariable="tw_7z_pass_disp"/>
+				<restrict minlen="1" maxlen="32" allow="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"/>
+				<action function="page">fm_ms_pass2</action>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x_caption%" y="%row2_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
+
+			<text style="text_input_fail">
+				<condition var1="of_pack_pw_err" var2="1"/>
+				<placement x="%col1_x_caption%" y="%row3_1a_y%"/>
+				<text>{@pass_not_match}</text>
+			</text>
+
+			<template name="gestures_key"/>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">%of_pw_return%</action>
+			</action>
+		</page>
+
+		<page name="fm_ms_pass2">
+			<template name="base_ex_key"/>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x_indent%" y="%ab_bc_y%"/>
+				<text>{@fm_hdr}</text>
+			</text>
+
+			<text style="text_ab_title">
+				<placement x="%col1_x%" y="%row1_2_y%" placement="2"/>
+				<text>{@encryption_hdr}</text>
+			</text>
+
+			<text style="caption_hl">
+				<placement x="%col1_x_caption%" y="%row2_1a_y%"/>
+				<text>{@verifying_pas}</text>
+			</text>
+
+			<input>
+				<placement x="%col1_x_caption%" y="%row2_2a_y%" w="%input_w%" h="%input_height%"/>
+				<text>%tw_7z_pass2_disp%</text>
+				<data name="tw_7z_pass2" mask="*" maskvariable="tw_7z_pass2_disp"/>
+				<restrict minlen="1" maxlen="32" allow="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"/>
+				<action function="page">fm_ms_pass_check</action>
+			</input>
+
+			<fill color="%accent%">
+				<placement x="%col1_x_caption%" y="%row2_3a_y%" w="%input_w%" h="%input_line_height%" placement="1"/>
+			</fill>
+
+			<template name="gestures_key"/>
+
+			<action>
+				<touch key="back"/>
+				<action function="page">fm_ms_pass</action>
+			</action>
+		</page>
+
+		<page name="fm_ms_pass_check">
+			<action>
+				<condition var1="tw_7z_pass" var2="tw_7z_pass2"/>
+				<action function="set">of_pack_pw_err=0</action>
+				<action function="set">of_pack_pw=-p%tw_7z_pass% -mhe=on</action>
+				<action function="page">%of_pw_return%</action>
+			</action>
+
+			<action>
+				<condition var1="tw_7z_pass" op="!=" var2="tw_7z_pass2"/>
+				<action function="page">fm_ms_pass_failed</action>
+			</action>
+		</page>
+
+		<page name="fm_ms_pass_failed">
+			<action>
+				<action function="set">tw_7z_pass=</action>
+				<action function="set">tw_7z_pass2=</action>
+				<action function="set">tw_7z_pass_disp=</action>
+				<action function="set">tw_7z_pass2_disp=</action>
+				<action function="set">of_pack_pw=</action>
+				<action function="set">of_pack_pw_err=1</action>
+				<action function="page">fm_ms_pass</action>
+			</action>
+		</page>
+
 		<page name="filemanageraction">
 			<template name="base_console_cancel"/>
 

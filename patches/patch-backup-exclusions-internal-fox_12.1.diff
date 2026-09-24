@@ -1,0 +1,251 @@
+--- a/partition.cpp
++++ b/partition.cpp
+@@ -686,6 +686,25 @@
+ 		Setup_Data_Partition(Display_Error);
+ 	else if (Mount_Point == "/cache")
+ 		Setup_Cache_Partition(Display_Error);
++
++#ifdef TW_BACKUP_EXCLUSIONS
++	// backup_exclusions is a per-partition member, and the TW_BACKUP_EXCLUSIONS
++	// list is otherwise only read in Setup_Data_Media(), which runs for /data
++	// alone. /data already excludes /data/media wholesale, so board-defined
++	// exclusions could never affect anything. Apply them to every partition
++	// here instead, which is what a board-level exclusion list implies -- and
++	// what makes them reach an internal-storage mount point such as /storage.
++	{
++		std::vector<std::string> board_exclusions = TWFunc::Split_String(TW_BACKUP_EXCLUSIONS, ",");
++		for (const std::string& excl : board_exclusions) {
++			std::string trimmed = TWFunc::trim(excl);
++			if (!trimmed.empty()) {
++				backup_exclusions.add_absolute_dir(trimmed);
++				LOGINFO("Board exclusion '%s' added to partition '%s'\n", trimmed.c_str(), Mount_Point.c_str());
++			}
++		}
++	}
++#endif
+ }
+ 
+ void TWPartition::ExcludeAll(const string& path) {
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -1150,14 +1150,17 @@
+ 		return true;
+ 	}
+ backup_error:
+-	Clean_Backup_Folder(part_settings->Backup_Folder);
++	// Save the log before cleaning, not after: cleaning now removes the folder
++	// itself, and copying into a folder that is already gone only produced a
++	// "No such file or directory" error on screen.
+ 	TWFunc::copy_file("/tmp/recovery.log", backup_log, 0644);
+ 	tw_set_default_metadata(backup_log.c_str());
++	Clean_Backup_Folder(part_settings->Backup_Folder, stop_backup.get_value() != 0);
+ 	TWFunc::SetPerformanceMode(false);
+ 	return false;
+ }
+ 
+-void TWPartitionManager::Clean_Backup_Folder(string Backup_Folder) {
++void TWPartitionManager::Clean_Backup_Folder(string Backup_Folder, bool Remove_Log) {
+ 	DIR *d = opendir(Backup_Folder.c_str());
+ 	struct dirent *p;
+ 	int r;
+@@ -1168,6 +1171,10 @@
+ 	ext.push_back("md5");
+ 	ext.push_back("sha2");
+ 	ext.push_back("info");
++	// The saved log is worth keeping when the backup failed on its own, and
++	// only gets in the way when the user cancelled deliberately.
++	if (Remove_Log)
++		ext.push_back("log");
+ 
+ 	gui_msg("backup_clean=Backup Failed. Cleaning Backup Folder.");
+ 
+@@ -1184,7 +1191,11 @@
+ 
+ 		size_t dot = path.find_last_of(".") + 1;
+ 		for (vector<string>::const_iterator i = ext.begin(); i != ext.end(); ++i) {
+-			if (path.substr(dot) == *i) {
++			// Match on the start of the extension, not the whole of it: a
++			// backup that was split into several archives ends in win000,
++			// win001 and so on, none of which equal "win", so an exact
++			// comparison left every part of a split backup behind.
++			if (path.compare(dot, i->length(), *i) == 0) {
+ 				r = unlink(path.c_str());
+ 				if (r != 0)
+ 					LOGINFO("Unable to unlink '%s: %s'\n", path.c_str(), strerror(errno));
+@@ -1192,6 +1203,11 @@
+ 		}
+ 	}
+ 	closedir(d);
++
++	// Drop the now-empty folder too, so a failed backup leaves nothing at all.
++	// rmdir refuses a non-empty directory, so anything unexpected is kept.
++	if (rmdir(Backup_Folder.c_str()) != 0)
++		LOGINFO("Backup folder '%s' not removed: %s\n", Backup_Folder.c_str(), strerror(errno));
+ }
+ 
+ int TWPartitionManager::Check_Backup_Cancel() {
+@@ -1375,9 +1391,18 @@
+         	{ 
+           	   if (strstr(part_settings.Backup_Folder.c_str(), "data/media/0"))
+              		{
++#ifdef TW_ALLOW_INTERNAL_SELF_BACKUP
++                	   // The board opts into this, having excluded the backup
++                	   // destination via TW_BACKUP_EXCLUSIONS. tar still reads a
++                	   // file that is growing underneath it if that exclusion is
++                	   // wrong or missing, so the destination folder must be
++                	   // covered there before enabling this.
++                	   gui_msg("fox_internal_q1=OrangeFox - Internal Storage - take care!");
++#else
+                 	   gui_err("fox_internal_fatal_i1=OrangeFox: FATAL ERROR! You cannot backup Internal Storage onto itself!");
+                 	   gui_err("fox_internal_fatal_i2=You MUST change the backup destination to MicroSD/USB-OTG.");
+                 	   return false;
++#endif
+              		} 
+              		   else gui_msg("fox_internal_q1=OrangeFox - Internal Storage - take care!");
+         	}
+--- a/partitions.hpp
++++ b/partitions.hpp
+@@ -400,7 +400,7 @@
+ 	TWPartition *Get_Default_Storage_Partition();                             // Returns a pointer to a default storage partition
+ 	int Check_Backup_Cancel();                                                // Returns the value of stop_backup
+ 	int Cancel_Backup();                                                      // Signals partition backup to cancel
+-	void Clean_Backup_Folder(string Backup_Folder);                           // Clean Backup Folder on Error
++	void Clean_Backup_Folder(string Backup_Folder, bool Remove_Log = true);   // Clean Backup Folder on Error
+ 	int Fix_Contexts();
+ 	void Get_Partition_List(string ListType, std::vector<PartitionList> *Partition_List);
+ 	int Fstab_Processed();                                                    // Indicates if the fstab has been processed or not
+--- a/Android.mk
++++ b/Android.mk
+@@ -458,6 +458,9 @@
+ ifneq ($(TW_BACKUP_EXCLUSIONS),)
+     LOCAL_CFLAGS += -DTW_BACKUP_EXCLUSIONS='"$(TW_BACKUP_EXCLUSIONS)"'
+ endif
++ifeq ($(TW_ALLOW_INTERNAL_SELF_BACKUP), true)
++    LOCAL_CFLAGS += -DTW_ALLOW_INTERNAL_SELF_BACKUP
++endif
+ ifeq ($(TW_INCLUDE_FASTBOOTD), true)
+     LOCAL_CFLAGS += -DTW_INCLUDE_FASTBOOTD
+ endif
+--- a/twrp-functions.cpp
++++ b/twrp-functions.cpp
+@@ -1214,7 +1214,11 @@
+   if (d)
+     {
+       struct dirent *p;
+-      while (!r && (p = readdir(d)))
++      int failed = 0;
++      // Keep going after a failure instead of stopping at the first one: a
++      // cancelled backup leaves the archive the killed tar was still holding,
++      // and aborting there left every remaining file of that backup on disk.
++      while ((p = readdir(d)))
+ 	{
+ 	  if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+ 	    continue;
+@@ -1242,8 +1246,11 @@
+ 			  strerror(errno));
+ 		}
+ 	    }
++	  if (r)
++	    failed = r;
+ 	}
+       closedir(d);
++      r = failed;
+ 
+       if (!r)
+ 	{
+@@ -1607,7 +1614,44 @@
+ 		//remove periods from build display so it doesn't confuse the extension code
+ 		propvalue.erase(remove(propvalue.begin(), propvalue.end(), '.'), propvalue.end());
+ 	}
+-	string Backup_Name = Get_Current_Date();
++
++	// Shorten the auto-generated name. ro.build.display.id on this device is a
++	// long fixed string (e.g. INOI_A750_NEEA_U_V6_20250828_user) that repeats
++	// identically on every backup; trim the parts that carry no information
++	// run to run, and spell the model the way it is marketed. Scoped to this
++	// function only -- the property itself and Get_Current_Date() (used
++	// elsewhere for logs/screenshots) are untouched.
++	{
++		static const char* suffixes[] = {"_userdebug", "_eng", "_user"};
++		for (size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
++			size_t len = strlen(suffixes[i]);
++			if (propvalue.size() > len &&
++			    propvalue.compare(propvalue.size() - len, len, suffixes[i]) == 0) {
++				propvalue.resize(propvalue.size() - len);
++				break;
++			}
++		}
++		size_t pos = propvalue.find("A750");
++		if (pos != string::npos)
++			propvalue.replace(pos, 4, "A75");
++
++		// The brand prefix is redundant: this recovery only ever runs on one
++		// device, so its own backups never need to be told apart from another
++		// brand's.
++		if (propvalue.compare(0, 5, "INOI_") == 0)
++			propvalue.erase(0, 5);
++	}
++
++	// Own timestamp without seconds, and a single separator instead of
++	// Get_Current_Date()'s double dash between date and time -- two backups a
++	// minute apart is not a real scenario here, and this reads shorter for no
++	// loss of information a user would actually check by.
++	char timestamp[32];
++	time_t seconds = time(0);
++	struct tm *t = localtime(&seconds);
++	sprintf(timestamp, "%04d-%02d-%02d_%02d-%02d", t->tm_year + 1900,
++		t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
++	string Backup_Name = timestamp;
+ 	Backup_Name += "_" + propvalue;
+ 	if (Backup_Name.size() > MAX_BACKUP_NAME_LEN)
+ 		Backup_Name.resize(MAX_BACKUP_NAME_LEN);
+--- a/gui/action.cpp
++++ b/gui/action.cpp
+@@ -1927,6 +1927,29 @@
+   return 0;
+ }
+ 
++// Keep archive passwords out of the log. An encrypted archive is created with
++// the password on the command line, and recovery logs are copied to internal
++// storage, so logging the command verbatim would leave the password sitting
++// next to the archive it protects.
++static std::string redact_secrets(const std::string& command) {
++	if (command.find("/tmp/of_packpw") != std::string::npos &&
++	    command.find("printf") != std::string::npos)
++		return "<password written to /tmp/of_packpw>";
++
++	std::string out = command;
++	size_t at = out.find(" -p");
++	while (at != std::string::npos) {
++		size_t from = at + 3;
++		size_t to = out.find(' ', from);
++		if (to == std::string::npos)
++			to = out.size();
++		if (to > from)
++			out.replace(from, to - from, "***");
++		at = out.find(" -p", from + 3);
++	}
++	return out;
++}
++
+ int GUIAction::terminalcommand(std::string arg)
+ {
+   int op_status = 0;
+@@ -1950,7 +1973,7 @@
+   else
+     {
+       command = "cd \"" + cmdpath + "\" && " + arg + " 2>&1";;
+-      LOGINFO("Actual command is: '%s'\n", command.c_str());
++      LOGINFO("Actual command is: '%s'\n", redact_secrets(command).c_str());
+       DataManager::SetValue("tw_terminal_state", 1);
+       DataManager::SetValue("tw_background_thread_running", 1);
+       FILE *fp;
+@@ -2863,7 +2886,7 @@
+   //begin terminal
+   DataManager::GetValue("tw_terminal_location", cmdpath);
+   command = "cd \"" + cmdpath + "\" && " + std::string(buff) + " 2>&1";
+-  LOGINFO("Actual command is: '%s'\n", command.c_str());
++  LOGINFO("Actual command is: '%s'\n", redact_secrets(command).c_str());
+   DataManager::SetValue("tw_terminal_state", 1);
+   DataManager::SetValue("tw_background_thread_running", 1);
+   FILE* fp;

@@ -1,0 +1,229 @@
+--- a/twrp.cpp
++++ b/twrp.cpp
+@@ -79,6 +79,19 @@
+ int Log_Offset;
+ bool datamedia;
+ 
++// Pure logging, no functional effect: prints /proc/uptime at named boot
++// checkpoints so a phase timeline can be read straight out of recovery.log.
++static void Fox_Log_Boot_Timing(const char* phase) {
++	FILE* f = fopen("/proc/uptime", "r");
++	double uptime = 0.0;
++	if (f) {
++		if (fscanf(f, "%lf", &uptime) != 1)
++			uptime = 0.0;
++		fclose(f);
++	}
++	LOGINFO("BOOT_TIMING: %-28s t=%.2fs\n", phase, uptime);
++}
++
+ static void Print_Prop(const char *key, const char *name, void *cookie) {
+ 	printf("%s=%s\n", key, name);
+ }
+@@ -251,7 +264,9 @@
+ #ifdef TW_INCLUDE_CRYPTO
+ 	android::keystore::copySqliteDb();
+ #endif
++	Fox_Log_Boot_Timing("before_decrypt_page");
+ 	Decrypt_Page(skip_decryption, datamedia);
++	Fox_Log_Boot_Timing("after_decrypt_page");
+ 
+ 	// Check for and load custom theme if present
+ 	TWFunc::check_selinux_support();
+@@ -266,11 +281,14 @@
+ 	// Fixup the RTC clock on devices which require it
+ 	if (crash_counter == 0)
+ 		TWFunc::Fixup_Time_On_Boot();
++	Fox_Log_Boot_Timing("after_fixup_time");
+ 
+ 	TWFunc::Update_Log_File();
++	Fox_Log_Boot_Timing("log_file_updated");
+ #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
+ 	DataManager::ReadSettingsFile();
+ #endif
++	Fox_Log_Boot_Timing("settings_read");
+ 
+ 	// Run any outstanding OpenRecoveryScript
+ 	std::string cacheDir = TWFunc::get_log_dir();
+@@ -281,9 +299,11 @@
+ 		OpenRecoveryScript::Run_OpenRecoveryScript();
+ 	}
+ 
++  	Fox_Log_Boot_Timing("before_fox_startup");
+   	// call OrangeFox startup code
+   	TWFunc::OrangeFox_Startup();
+-  	
++  	Fox_Log_Boot_Timing("after_fox_startup");
++
+ #ifdef OF_ADVANCED_SECURITY
+ 	LOGINFO("ADB & MTP disabled by maintainer\n");
+ 	DataManager::SetValue("fox_advanced_security", "1");
+@@ -313,6 +333,8 @@
+ #endif
+ #endif
+ 
++	Fox_Log_Boot_Timing("mtp_done");
++
+ #ifndef TW_OEM_BUILD
+ 	// Check if system has never been changed
+ 	TWPartition* sys = PartitionManager.Find_Partition_By_Path(PartitionManager.Get_Android_Root_Path());
+@@ -327,9 +349,12 @@
+ 				if (!created)
+ 					LOGERR("Unable to create log directory for TWRP\n");
+ 			}
++			Fox_Log_Boot_Timing("logs_dir_checked");
+ #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
+ 			DataManager::ReadSettingsFile();
++			Fox_Log_Boot_Timing("settings_read_2");
+ 			PartitionManager.Mount_Super_Toggle(DataManager::GetStrValue("tw_mount_system_ro"));
++			Fox_Log_Boot_Timing("super_toggle_done");
+ #endif
+ #endif
+ 		} else {
+@@ -357,10 +382,13 @@
+ 
+ 	TWFunc::Update_Log_File();
+ 
++	Fox_Log_Boot_Timing("system_ro_checks_done");
++
+ 	adb_bu_fifo->threadAdbBuFifo();
+ 
+ 	// run the postrecoveryboot script here
+ 	TWFunc::RunFoxScript("/system/bin/postrecoveryboot.sh", "");
++	Fox_Log_Boot_Timing("postrecoveryboot_done");
+ #ifndef OF_DEVICE_WITHOUT_PERSIST
+ 	DataManager::RestorePasswordBackup();
+ #endif
+@@ -436,6 +464,7 @@
+ 	setbuf(stderr, NULL);
+ 
+ 	signal(SIGPIPE, SIG_IGN);
++	Fox_Log_Boot_Timing("main_entry");
+ 
+ 	// Handle ADB sideload
+ 	if (argc == 3 && strcmp(argv[1], "--adbd") == 0) {
+@@ -540,6 +569,7 @@
+ 		LOGERR("Failing out of recovery due to problem with fstab.\n");
+ 		return -1;
+ 	}
++	Fox_Log_Boot_Timing("fstab_processed");
+ 
+ 	// Set the props for OrangeFox dynamic partitions
+ 	//PartitionManager.Fox_Set_Dynamic_Partition_Props();
+@@ -547,11 +577,14 @@
+ 	// start the UI
+ 	printf("Starting the UI...\n");
+ 	gui_init();
++	Fox_Log_Boot_Timing("gui_init_done");
+ 
+ 	if (!startup.Get_Fastboot_Mode()) PartitionManager.Setup_Fstab_Partitions(true);
++	Fox_Log_Boot_Timing("fstab_partitions_setup");
+ 
+ 	// Load up all the resources
+ 	gui_loadResources();
++	Fox_Log_Boot_Timing("gui_resources_loaded");
+ 
+ 	std::string value;
+ 	static char charging = ' ';
+@@ -630,6 +663,7 @@
+ 	} else {
+ 		process_recovery_mode(adb_bu_fifo, startup.Should_Skip_Decryption());
+ 	}
++	Fox_Log_Boot_Timing("process_recovery_mode_done");
+ #ifndef FOX_ALLOW_EARLY_SETTINGS_LOAD
+ 	// Language
+ 	PageManager::LoadLanguage(DataManager::GetStrValue("tw_language"));
+@@ -643,8 +677,12 @@
+ 		//[f/d] Start UI using reapply_settings page (executed on recovery startup)
+ 		DataManager::SetValue("of_reload_back", "main");
+ 		PageManager::RequestReload();
++		Fox_Log_Boot_Timing("before_reapply_settings_page");
+ 		gui_startPage("reapply_settings", 1, 0);
+-	} else gui_start();
++	} else {
++		Fox_Log_Boot_Timing("before_gui_start");
++		gui_start();
++	}
+ 
+ 	delete adb_bu_fifo;
+ 	TWFunc::Update_Intent_File(startup.Get_Intent());
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -142,6 +142,19 @@
+ // Only our private copy is rewritten; the ROM's fstab is untouched, so normal
+ // Android boots still check /data exactly as before, and "Repair or Change File
+ // System" in the GUI still runs fsck on demand.
++// Same pure-logging helper as the one in twrp.cpp, repeated here so the phases
++// inside Setup_Fstab_Partitions() land in the same BOOT_TIMING timeline.
++static void Fox_Log_Boot_Timing(const char* phase) {
++	FILE* f = fopen("/proc/uptime", "r");
++	double uptime = 0.0;
++	if (f) {
++		if (fscanf(f, "%lf", &uptime) != 1)
++			uptime = 0.0;
++		fclose(f);
++	}
++	LOGINFO("BOOT_TIMING: %-28s t=%.2fs\n", phase, uptime);
++}
++
+ static void Fox_Strip_Fsck_Flag(const std::string& fstab_path) {
+ 	std::string contents;
+ 	if (!android::base::ReadFileToString(fstab_path, &contents))
+@@ -583,6 +596,8 @@
+ 				(*iter)->Has_Android_Secure = false;
+ 		}
+ 
++		Fox_Log_Boot_Timing("  post_processing_done");
++
+ 		Unlock_Block_Partitions();
+ 
+ 		//Setup Apex before decryption
+@@ -653,15 +668,19 @@
+ 		if (settings_partition) {
+ 			Setup_Settings_Storage_Partition(settings_partition);
+ 		}
++		Fox_Log_Boot_Timing("  storage_setup_done");
+ 
+ 	#ifdef TW_INCLUDE_CRYPTO
+ 		DataManager::SetValue(TW_IS_ENCRYPTED, 1);
+ 		Decrypt_Data();
+ 	#endif
++		Fox_Log_Boot_Timing("  decrypt_data_done");
+ 
+ 		Update_System_Details();
++		Fox_Log_Boot_Timing("  update_details_done");
+ 		if (Get_Super_Status())
+ 			Setup_Super_Partition();
++		Fox_Log_Boot_Timing("  super_partition_done");
+ 		UnMount_Main_Partitions();
+ 	#ifdef AB_OTA_UPDATER
+ 		DataManager::SetValue("tw_active_slot", Get_Active_Slot_Display());
+@@ -717,13 +736,16 @@
+ 				LOGINFO("Successfully decrypted metadata encrypted data partition with new block device: '%s'\n", crypto_blkdev.c_str());
+ #endif
+ 				Decrypt_Data->Is_Decrypted = true; // Needed to make the mount function work correctly
++				Fox_Log_Boot_Timing("    meta_mount_done");
+ 				int retry_count = 10;
+ 				while (!Decrypt_Data->Mount(false) && --retry_count)
+ 					usleep(500);
++				Fox_Log_Boot_Timing("    data_mounted");
+ 				if (Decrypt_Data->Mount(false)) {
+ 					if (!Decrypt_Data->Decrypt_FBE_DE()) {
+ 						LOGERR("Unable to decrypt FBE device\n");
+ 					}
++					Fox_Log_Boot_Timing("    fbe_de_done");
+ 
+ 				} else {
+ 					LOGINFO("Failed to mount data after metadata decrypt\n");
+@@ -763,9 +785,11 @@
+ 			}
+ 		}
+ 	}
++	Fox_Log_Boot_Timing("    crypto_type_handled");
+ 	if (Decrypt_Data && (!Decrypt_Data->Is_Encrypted || Decrypt_Data->Is_Decrypted)) {
+ 		Decrypt_Adopted();
+ 	}
++	Fox_Log_Boot_Timing("    adopted_done");
+ #endif
+ }
+ 

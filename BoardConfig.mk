@@ -41,3 +41,25 @@ override TW_CUSTOM_CPU_TEMP_PATH := /sys/devices/virtual/thermal/thermal_zone25/
 # Brightness
 override TW_DEFAULT_BRIGHTNESS := 102
 override TW_MAX_BRIGHTNESS := 255
+
+# Backup exclusions
+# Comma-separated absolute paths, consumed by TW_BACKUP_EXCLUSIONS in
+# bootable/recovery (partition.cpp, "board-customisable exclusions").
+#
+# /data/media is already excluded from the /data backup wholesale
+# (ExcludeAll(Mount_Point + "/media")), so this changes nothing there. It
+# matters for the /storage bind mount added in the common tree's twrp.flags,
+# which backs up internal storage as its own entry: without this, every
+# previous OrangeFox backup (~25 GiB here) is dragged into the new one.
+#
+# Paths are matched by exact string (exclude.cpp, check_absolute_skip_dirs),
+# against names produced by walking the mount point. That walk starts at
+# /storage, so it yields /storage/Fox and never /data/media/0/Fox -- the
+# mount-point spelling is the one that actually matches. The /data/media/0
+# spelling is kept for code paths that walk the real path instead.
+TW_BACKUP_EXCLUSIONS := /storage/Fox,/data/media/0/Fox
+
+# Allow internal storage to be backed up onto itself. Upstream aborts this
+# outright; the patch in patches/ turns the abort into a warning when this is
+# set. Only safe because the line above excludes the destination folder.
+TW_ALLOW_INTERNAL_SELF_BACKUP := true
